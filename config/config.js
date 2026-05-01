@@ -5,5 +5,11 @@ module.exports = {
     port: process.env.DB_PORT || 27017,
     name: process.env.DB_NAME || 'database_name'
   },
-  JWT_AUTH_TOKEN:process.env.DB_HOST
+  JWT_AUTH_TOKEN: process.env.JWT_AUTH_TOKEN,
+  mail: {
+    user: process.env.MAIL_USER,
+    password: process.env.MAIL_PASSWORD,
+    host: process.env.MAIL_HOST || 'smtp.gmail.com',
+    port: process.env.MAIL_PORT || 587,
+  },
 };

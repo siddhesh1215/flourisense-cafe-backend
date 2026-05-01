@@ -1,3 +1,4 @@
 module.exports.register = async (request, response, next) => {
-    // Write your logic here!!!
-      };
+    // Validation logic can be added here if needed
+    next();
+};

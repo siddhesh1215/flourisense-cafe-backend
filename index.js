@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3001;
-const sequelize = require('./config/dbConfig.js');
+const { sequelize } = require('./models');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -10,6 +10,15 @@ app.use(express.urlencoded({ extended: true }));
 const routes = require('./router.js');
 app.use('/api/v1', routes);
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// Sync database and start server
+sequelize.sync({ alter: true })
+  .then(() => {
+    console.log('Database synced successfully');
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Error syncing database:', error);
+    process.exit(1);
+  });

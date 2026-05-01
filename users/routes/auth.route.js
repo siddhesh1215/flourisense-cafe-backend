@@ -7,10 +7,13 @@ const authValidation = require("../validators/auth.validator");
 
 router.post(
   "/register",
-  verifyJWTToken,
   authValidation.register,
   authController.register,
 );
 
+router.post(
+  "/verify-otp",
+  authController.verifyOTP,
+);
 
 module.exports = router;
