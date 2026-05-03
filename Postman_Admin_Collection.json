@@ -1,0 +1,331 @@
+{
+  "info": {
+    "_postman_id": "admin-module-api",
+    "name": "Cafe Admin Module API",
+    "description": "Complete Admin APIs for Menu and Feedback Management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Menu Management",
+      "item": [
+        {
+          "name": "Create Menu Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Espresso Coffee\",\n  \"description\": \"Rich and bold single shot espresso with smooth crema\",\n  \"price\": 3.50,\n  \"category_id\": 1,\n  \"image\": \"https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400\",\n  \"is_popular\": true,\n  \"is_available\": true,\n  \"display_order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/menu",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu"]
+            }
+          }
+        },
+        {
+          "name": "Get All Menu Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/menu",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "is_available",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "coffee",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Menu Item",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/menu/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Menu Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Espresso Coffee Updated\",\n  \"price\": 4.00,\n  \"display_order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/menu/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Menu Price Only",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 5.50\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/menu/1/price",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu", "1", "price"]
+            }
+          }
+        },
+        {
+          "name": "Delete Menu Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/menu/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Menu Item Permanently",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/menu/1/permanent",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "menu", "1", "permanent"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feedback Management",
+      "item": [
+        {
+          "name": "Get All Feedback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                },
+                {
+                  "key": "rating",
+                  "value": "5",
+                  "disabled": true
+                },
+                {
+                  "key": "is_approved",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Feedback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback", "1"]
+            }
+          }
+        },
+        {
+          "name": "Approve Feedback",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback/1/approve",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback", "1", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject Feedback",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback/1/reject",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback", "1", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Delete Feedback",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback/1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Feedback Permanently",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback/1/permanent",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback", "1", "permanent"]
+            }
+          }
+        },
+        {
+          "name": "Get Feedback Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/feedback/stats/summary",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "feedback", "stats", "summary"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001/api/v1"
+    },
+    {
+      "key": "token",
+      "value": "your_admin_jwt_token_here"
+    }
+  ]
+}

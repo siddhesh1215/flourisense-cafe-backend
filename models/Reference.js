@@ -15,7 +15,7 @@ const Reference = sequelize.define('Reference', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  mode: {
+  code: {
     type: DataTypes.STRING,
     allowNull: true
   },
@@ -35,9 +35,9 @@ const Reference = sequelize.define('Reference', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
-    allowNull: true
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'references',

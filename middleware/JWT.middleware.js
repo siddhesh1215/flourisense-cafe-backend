@@ -3,7 +3,22 @@ const config = require("./../config/config");
 
 module.exports.verifyJWTToken = (request, response, next) => {
     try {
-        let token = request.headers.authorization;
+        let rawToken = request.headers.authorization;
+        if (!rawToken) {
+            return response
+                .status(403)
+                .json({
+                    status: false,
+                    message: "No authorization token provided!",
+                    data: null,
+                });
+        }
+
+        // Support both "Bearer <token>" and plain "<token>"
+        const token = rawToken.startsWith('Bearer ')
+            ? rawToken.slice(7).trim()
+            : rawToken.trim();
+
         if (!token) {
             return response
                 .status(403)

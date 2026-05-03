@@ -1,24 +1,23 @@
 const sequelize = require('../config/dbConfig');
 const { DataTypes } = require('sequelize');
 
-const CartItem = sequelize.define('CartItem', {
+const LocationMenuItem = sequelize.define('LocationMenuItem', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  cart_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
   menu_item_id: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  quantity: {
+  location_id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1
+    allowNull: false
+  },
+  is_available: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
   created_on: {
     type: DataTypes.DATE,
@@ -41,8 +40,8 @@ const CartItem = sequelize.define('CartItem', {
     defaultValue: false
   }
 }, {
-  tableName: 'cart_items',
+  tableName: 'location_menu_items',
   timestamps: false
 });
 
-module.exports = CartItem;
+module.exports = LocationMenuItem;

@@ -11,13 +11,17 @@ const LoginSession = sequelize.define('LoginSession', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  token: {
-    type: DataTypes.TEXT,
-    allowNull: false
+  type: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
-  expireAt: {
+  token: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  expires_at: {
     type: DataTypes.DATE,
-    allowNull: false
+    allowNull: true
   },
   created_on: {
     type: DataTypes.DATE,
@@ -35,9 +39,9 @@ const LoginSession = sequelize.define('LoginSession', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
-    allowNull: true
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'login_sessions',

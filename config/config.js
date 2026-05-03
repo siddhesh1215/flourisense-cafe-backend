@@ -6,6 +6,7 @@ module.exports = {
     name: process.env.DB_NAME || 'database_name'
   },
   JWT_AUTH_TOKEN: process.env.JWT_AUTH_TOKEN,
+  ADMIN_REGISTER_SECRET_KEY: process.env.ADMIN_REGISTER_SECRET_KEY,
   mail: {
     user: process.env.MAIL_USER,
     password: process.env.MAIL_PASSWORD,

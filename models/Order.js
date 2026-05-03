@@ -7,21 +7,30 @@ const Order = sequelize.define('Order', {
     autoIncrement: true,
     primaryKey: true
   },
-  order_number: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+  order_type_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  status_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   },
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
+  order_number: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
+  },
   total_amount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  status_id: {
-    type: DataTypes.INTEGER,
+  payment_status: {
+    type: DataTypes.STRING,
+    defaultValue: 'pending', // pending, paid, failed, refunded
     allowNull: true
   },
   created_on: {
@@ -40,8 +49,12 @@ const Order = sequelize.define('Order', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  location_id: {
+    type: DataTypes.INTEGER,
     allowNull: true
   }
 }, {

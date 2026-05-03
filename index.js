@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3001;
@@ -11,7 +12,7 @@ const routes = require('./router.js');
 app.use('/api/v1', routes);
 
 // Sync database and start server
-sequelize.sync({ alter: true })
+sequelize.sync({ alter: false })
   .then(() => {
     console.log('Database synced successfully');
     app.listen(port, () => {

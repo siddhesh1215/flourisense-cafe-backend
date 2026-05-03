@@ -1,0 +1,408 @@
+{
+  "info": {
+    "name": "Role-Based Auth - Complete Workflow",
+    "description": "Complete testing workflow for role-based JWT authentication",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. REGISTRATION",
+      "item": [
+        {
+          "name": "Register Normal User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"user@example.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"User@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "register"]
+            },
+            "description": "Register a normal user (role = 'user')\nNo special header required"
+          }
+        },
+        {
+          "name": "Register Admin with Valid Secret",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-admin-secret",
+                "value": "{{ADMIN_SECRET_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"Admin@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "register"]
+            },
+            "description": "Register an admin user\nRequires x-admin-secret header with valid secret key"
+          }
+        },
+        {
+          "name": "Register Admin with INVALID Secret (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-admin-secret",
+                "value": "wrong_secret"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Fake Admin\",\n  \"email\": \"fakeadmin@example.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"Password@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "register"]
+            },
+            "description": "Attempt admin registration with WRONG secret\nExpected: 403 Forbidden"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. OTP VERIFICATION",
+      "item": [
+        {
+          "name": "Verify OTP (Normal User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"otp\": \"000000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "verify-otp"]
+            },
+            "description": "Verify OTP for normal user\nGet OTP from your email or debug endpoint"
+          }
+        },
+        {
+          "name": "Verify OTP (Admin User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 2,\n  \"otp\": \"000000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "verify-otp"]
+            },
+            "description": "Verify OTP for admin user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. LOGIN",
+      "item": [
+        {
+          "name": "Login as Normal User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"User@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "login"]
+            },
+            "description": "Login as a normal user\nResponse includes role and redirectTo"
+          }
+        },
+        {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "auth", "login"]
+            },
+            "description": "Login as an admin user\nResponse includes role='admin' and redirectTo='/admin-dashboard'"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. PROTECTED ROUTES (Admin Only)",
+      "item": [
+        {
+          "name": "Get Dashboard (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_JWT}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Get admin dashboard data\nRequires admin JWT token"
+          }
+        },
+        {
+          "name": "Get Analytics (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_JWT}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/analytics?startDate=2026-01-01&endDate=2026-05-03",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "analytics"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-05-03"
+                }
+              ]
+            },
+            "description": "Get analytics data\nAdmins only"
+          }
+        },
+        {
+          "name": "Update User (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_JWT}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated User\",\n  \"phone\": \"1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "1"]
+            },
+            "description": "Update a user (admin only)"
+          }
+        },
+        {
+          "name": "Delete User (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_JWT}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "1"]
+            },
+            "description": "Delete a user (admin only)"
+          }
+        },
+        {
+          "name": "Get Settings (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_JWT}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "settings"]
+            },
+            "description": "Get system settings (admin only)\nUses database-based verification"
+          }
+        },
+        {
+          "name": "Update Settings (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_JWT}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"maxOrderItems\": 100,\n  \"otpExpireMinutes\": 15\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "settings"]
+            },
+            "description": "Update system settings (admin only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. ERROR SCENARIOS",
+      "item": [
+        {
+          "name": "Access Admin Route with User Token (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{USER_JWT}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Try to access admin endpoint with a regular user JWT\nExpected: 403 Forbidden"
+          }
+        },
+        {
+          "name": "Access Admin Route without Token (401)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Try to access admin endpoint without token\nExpected: 401 Unauthorized"
+          }
+        },
+        {
+          "name": "Access Admin Route with Invalid Token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid_token_xyz"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Try to access admin endpoint with invalid token\nExpected: 401 Unauthorized"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "ADMIN_SECRET_KEY",
+      "value": "admin_secret_key_2026",
+      "type": "string"
+    },
+    {
+      "key": "ADMIN_JWT",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "USER_JWT",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

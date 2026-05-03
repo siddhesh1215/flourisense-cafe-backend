@@ -1,25 +1,28 @@
 const nodemailer = require('nodemailer');
-require('dotenv').config();
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST || 'smtp.gmail.com',
-  port: process.env.MAIL_PORT || 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASSWORD,
-  },
-});
+/**
+ * Create a fresh nodemailer transporter using current env vars.
+ * Called lazily inside each function so dotenv is guaranteed to be loaded.
+ */
+const createTransporter = () => {
+  const user = process.env.MAIL_USER;
+  const pass = process.env.MAIL_PASSWORD;
 
-// Verify transporter connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('Mail service error:', error);
-  } else {
-    console.log('Mail service is ready');
+  if (!user || !pass) {
+    throw new Error(
+      'Mail credentials missing. Set MAIL_USER and MAIL_PASSWORD in .env'
+    );
   }
-});
+
+  return nodemailer.createTransport({
+    host: process.env.MAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.MAIL_PORT, 10) || 587,
+    secure: false,          // STARTTLS on port 587
+    pool: true,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }, // allow self-signed certs in dev
+  });
+};
 
 /**
  * Send OTP email
@@ -29,6 +32,11 @@ transporter.verify((error, success) => {
  */
 const sendOTPEmail = async (email, otp, userName = 'User') => {
   try {
+    console.log(`[MAILER] Preparing to send OTP email to ${email}`);
+    console.log(`[MAILER] Using MAIL_USER: ${process.env.MAIL_USER}`);
+    console.log(`[MAILER] Using MAIL_HOST: ${process.env.MAIL_HOST}`);
+    console.log(`[MAILER] Using MAIL_PORT: ${process.env.MAIL_PORT}`);
+
     const mailOptions = {
       from: process.env.MAIL_USER,
       to: email,
@@ -59,15 +67,28 @@ const sendOTPEmail = async (email, otp, userName = 'User') => {
       `,
     };
 
+    console.log(`[MAILER] Sending email with options:`, {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+    });
+
+    const transporter = createTransporter();
     const info = await transporter.sendMail(mailOptions);
-    console.log('OTP email sent:', info.response);
+
+    console.log(`[MAILER] ✅ OTP email sent successfully`);
+    console.log(`[MAILER] Message ID:`, info.messageId);
+    console.log(`[MAILER] Response:`, info.response);
+
     return {
       success: true,
       message: 'OTP sent successfully',
       messageId: info.messageId,
     };
   } catch (error) {
-    console.error('Error sending OTP email:', error);
+    console.error(`[MAILER] ❌ Error sending OTP email:`, error.message);
+    console.error(`[MAILER] Full error:`, error);
+
     return {
       success: false,
       message: 'Failed to send OTP email',
@@ -115,6 +136,7 @@ const sendVerificationEmail = async (email, verificationLink, userName = 'User')
       `,
     };
 
+    const transporter = createTransporter();
     const info = await transporter.sendMail(mailOptions);
     console.log('Verification email sent:', info.response);
     return {

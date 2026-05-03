@@ -1,8 +1,12 @@
 const express = require("express");
-      const router = express.Router();
+const router = express.Router();
 
-      // Import all your routes here. This is an example: create auth.route.js and import it here.
-       const authRouter = require("./auth.route");   
-       router.use("/auth", authRouter);
+// ─── Auth Routes ──────────────────────────────────────────────────────────────
+const authRouter = require("./auth.route");
+router.use("/auth", authRouter);
 
-       module.exports = router;
+// ─── Menu & Feedback Routes ───────────────────────────────────────────────────
+const menuRouter = require("./menu.route");
+router.use("/", menuRouter);
+
+module.exports = router;

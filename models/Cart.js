@@ -27,8 +27,12 @@ const Cart = sequelize.define('Cart', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  menu_item_id: {
+    type: DataTypes.INTEGER,
     allowNull: true
   }
 }, {

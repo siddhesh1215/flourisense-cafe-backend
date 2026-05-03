@@ -11,10 +11,6 @@ const ReferenceType = sequelize.define('ReferenceType', {
     type: DataTypes.STRING,
     allowNull: false
   },
-  mode: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
   created_on: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
@@ -31,9 +27,9 @@ const ReferenceType = sequelize.define('ReferenceType', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
-    allowNull: true
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'reference_types',

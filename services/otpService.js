@@ -20,31 +20,41 @@ const generateOTP = (length = 6) => {
  */
 const createAndSendOTP = async (userId, email, userName = 'User', expiryMinutes = 10) => {
   try {
+    console.log(`[OTP] Starting OTP generation for user ${userId} (${email})`);
+    
     // Generate OTP
     const otpCode = generateOTP();
+    console.log(`[OTP] Generated OTP code: ${otpCode}`);
 
     // Calculate expiry time
     const expiryTime = new Date(Date.now() + expiryMinutes * 60000);
+    console.log(`[OTP] OTP expires at: ${expiryTime}`);
 
     // Save OTP to database
-    await OTP.create({
+    const otpRecord = await OTP.create({
       user_id: userId,
       otp_code: otpCode,
-      expireAt: expiryTime,
+      expires_at: expiryTime,
       created_on: new Date(),
       updated_on: new Date(),
     });
+    console.log(`[OTP] OTP saved to database with ID: ${otpRecord.id}`);
 
     // Send OTP via email
+    console.log(`[OTP] Sending OTP email to ${email}...`);
     const emailResult = await sendOTPEmail(email, otpCode, userName);
+    console.log(`[OTP] Email send result:`, emailResult);
 
     if (emailResult.success) {
+      console.log(`[OTP] ✅ OTP sent successfully to ${email}`);
       return {
         success: true,
         message: 'OTP sent successfully to your email',
         expiresIn: expiryMinutes,
+        testOTP: otpCode, // For development testing only
       };
     } else {
+      console.log(`[OTP] ❌ Email sending failed. Deleting OTP record.`);
       // Delete the OTP record if email failed
       await OTP.destroy({
         where: { user_id: userId, otp_code: otpCode }
@@ -52,15 +62,16 @@ const createAndSendOTP = async (userId, email, userName = 'User', expiryMinutes 
       
       return {
         success: false,
-        message: 'Failed to send OTP. Please try again.',
+        message: `Failed to send OTP: ${emailResult.error}`,
         error: emailResult.error,
       };
     }
   } catch (error) {
-    console.error('Error creating OTP:', error);
+    console.error('[OTP] ❌ Error creating OTP:', error.message);
+    console.error('[OTP] Full error:', error);
     return {
       success: false,
-      message: 'Error creating OTP',
+      message: 'Error creating OTP: ' + error.message,
       error: error.message,
     };
   }
@@ -86,7 +97,7 @@ const verifyOTP = async (userId, otpCode) => {
     }
 
     // Check if OTP has expired
-    if (new Date() > new Date(otpRecord.expireAt)) {
+    if (new Date() > new Date(otpRecord.expires_at)) {
       return {
         success: false,
         message: 'OTP has expired',

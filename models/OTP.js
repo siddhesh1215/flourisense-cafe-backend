@@ -7,17 +7,17 @@ const OTP = sequelize.define('OTP', {
     autoIncrement: true,
     primaryKey: true
   },
-  user_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
   otp_code: {
     type: DataTypes.STRING,
     allowNull: false
   },
-  expireAt: {
+  expires_at: {
     type: DataTypes.DATE,
     allowNull: false
+  },
+  is_used: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
   created_on: {
     type: DataTypes.DATE,
@@ -35,9 +35,17 @@ const OTP = sequelize.define('OTP', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  otp_type_id: {
+    type: DataTypes.INTEGER,
     allowNull: true
+  },
+  user_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   }
 }, {
   tableName: 'otps',

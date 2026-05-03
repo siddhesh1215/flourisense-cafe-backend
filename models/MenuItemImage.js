@@ -1,24 +1,31 @@
 const sequelize = require('../config/dbConfig');
 const { DataTypes } = require('sequelize');
 
-const CartItem = sequelize.define('CartItem', {
+const MenuItemImage = sequelize.define('MenuItemImage', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  cart_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
   menu_item_id: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  quantity: {
+  image_url: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  alt_text: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  is_primary: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  display_order: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1
+    allowNull: true
   },
   created_on: {
     type: DataTypes.DATE,
@@ -41,8 +48,8 @@ const CartItem = sequelize.define('CartItem', {
     defaultValue: false
   }
 }, {
-  tableName: 'cart_items',
+  tableName: 'menu_item_images',
   timestamps: false
 });
 
-module.exports = CartItem;
+module.exports = MenuItemImage;

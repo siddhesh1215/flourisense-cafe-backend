@@ -13,7 +13,14 @@ router.post(
 
 router.post(
   "/verify-otp",
+  authValidation.verifyOTP,
   authController.verifyOTP,
+);
+
+router.post(
+  "/login",
+  authValidation.login,
+  authController.login,
 );
 
 module.exports = router;

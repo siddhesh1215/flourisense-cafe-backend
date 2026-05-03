@@ -9,27 +9,44 @@ const MenuItem = sequelize.define('MenuItem', {
   },
   name: {
     type: DataTypes.STRING,
+    allowNull: false,
+    unique: true
+  },
+  category_id: {
+    type: DataTypes.INTEGER,
     allowNull: false
   },
   description: {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  emoji: {
+    type: DataTypes.STRING(10),
+    allowNull: true
+  },
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  category_id: {
+  quantity_available: {
     type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  is_available: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+    defaultValue: 0
   },
   is_popular: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  order_time: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  display_order: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  is_available: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
   created_on: {
     type: DataTypes.DATE,
@@ -47,9 +64,9 @@ const MenuItem = sequelize.define('MenuItem', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
-    allowNull: true
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'menu_items',

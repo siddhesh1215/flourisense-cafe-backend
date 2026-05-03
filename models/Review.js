@@ -1,24 +1,35 @@
 const sequelize = require('../config/dbConfig');
 const { DataTypes } = require('sequelize');
 
-const CartItem = sequelize.define('CartItem', {
+const Review = sequelize.define('Review', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  cart_id: {
+  user_id: {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  menu_item_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  quantity: {
+  rating: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 1
+    validate: {
+      min: 1,
+      max: 5
+    }
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  comment: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  is_approved: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
   created_on: {
     type: DataTypes.DATE,
@@ -39,10 +50,18 @@ const CartItem = sequelize.define('CartItem', {
   inactive: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  menu_item_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  order_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, {
-  tableName: 'cart_items',
+  tableName: 'reviews',
   timestamps: false
 });
 
-module.exports = CartItem;
+module.exports = Review;

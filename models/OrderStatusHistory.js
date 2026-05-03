@@ -1,7 +1,7 @@
 const sequelize = require('../config/dbConfig');
 const { DataTypes } = require('sequelize');
 
-const OrderSugarHistory = sequelize.define('OrderSugarHistory', {
+const OrderStatusHistory = sequelize.define('OrderStatusHistory', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
@@ -9,6 +9,14 @@ const OrderSugarHistory = sequelize.define('OrderSugarHistory', {
   },
   order_id: {
     type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  status_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  changed_on: {
+    type: DataTypes.DATE,
     allowNull: false
   },
   created_on: {
@@ -27,13 +35,13 @@ const OrderSugarHistory = sequelize.define('OrderSugarHistory', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
-    allowNull: true
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
-  tableName: 'order_sugar_histories',
+  tableName: 'order_status_histories',
   timestamps: false
 });
 
-module.exports = OrderSugarHistory;
+module.exports = OrderStatusHistory;

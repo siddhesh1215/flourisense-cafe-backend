@@ -7,6 +7,10 @@ const User = sequelize.define('User', {
     autoIncrement: true,
     primaryKey: true
   },
+  role_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false
@@ -18,10 +22,13 @@ const User = sequelize.define('User', {
   email: {
     type: DataTypes.STRING,
     allowNull: true,
-    unique: true
+    unique: true,
+    validate: {
+      isEmail: true
+    }
   },
   password: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(255),
     allowNull: false
   },
   is_verified: {
@@ -44,13 +51,9 @@ const User = sequelize.define('User', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
-  hashline: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  role_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true
+  inactive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'users',

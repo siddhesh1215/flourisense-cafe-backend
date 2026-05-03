@@ -1,24 +1,27 @@
 const sequelize = require('../config/dbConfig');
 const { DataTypes } = require('sequelize');
 
-const CartItem = sequelize.define('CartItem', {
+const Location = sequelize.define('Location', {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
   },
-  cart_id: {
-    type: DataTypes.INTEGER,
+  name: {
+    type: DataTypes.STRING,
     allowNull: false
   },
-  menu_item_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+  code: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1
+  address: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  city: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   created_on: {
     type: DataTypes.DATE,
@@ -41,8 +44,8 @@ const CartItem = sequelize.define('CartItem', {
     defaultValue: false
   }
 }, {
-  tableName: 'cart_items',
+  tableName: 'locations',
   timestamps: false
 });
 
-module.exports = CartItem;
+module.exports = Location;
