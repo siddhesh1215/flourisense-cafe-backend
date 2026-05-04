@@ -28,7 +28,7 @@ module.exports.verifyJWTToken = (request, response, next) => {
                     data: null,
                 });
         } else {
-            jwt.verify(token, config.JWT_AUTH_TOKEN, async (err, result) => {
+            jwt.verify(token, config.JWT_AUTH_TOKEN, (err, result) => {
                 if (err) {
                     return response
                         .status(401)
@@ -39,7 +39,9 @@ module.exports.verifyJWTToken = (request, response, next) => {
                         });
                 } else {
                     if (result) {
-                        request.body.user = result;
+                        request.user = result;           // standard Express pattern
+                        if (!request.body) request.body = {};
+                        request.body.user = result;      // backward compat for controllers
                         return next();
                     } else {
                         return response
