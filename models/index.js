@@ -14,6 +14,7 @@ const LoginSession = require('./LoginSession');
 const Order = require('./Order');
 const OrderStatusHistory = require('./OrderStatusHistory');
 const Location = require('./Location');
+const Menu = require('./Menu');
 const LocationMenuItem = require('./LocationMenuItem');
 const Review = require('./Review');
 
@@ -64,12 +65,31 @@ Order.hasMany(Review, { foreignKey: 'order_id' });
 OrderStatusHistory.belongsTo(Order, { foreignKey: 'order_id' });
 OrderStatusHistory.belongsTo(Reference, { foreignKey: 'status_id', as: 'status' });
 
-// ─── Location / LocationMenuItem associations ─────────────────────────────────
+// ─── Location / Menu associations ────────────────────────────────────────────
+// One Location has many Menus (breakfast, lunch, dinner menu, etc.)
+Location.hasMany(Menu, { foreignKey: 'location_id', as: 'menus' });
+Menu.belongsTo(Location, { foreignKey: 'location_id', as: 'location' });
+
+// ─── Menu / LocationMenuItem associations ────────────────────────────────────
+// One Menu has many LocationMenuItems (menu items in that menu at that location)
+Menu.hasMany(LocationMenuItem, { foreignKey: 'menu_id', as: 'locationMenuItems' });
+LocationMenuItem.belongsTo(Menu, { foreignKey: 'menu_id', as: 'menu' });
+
+// ─── Location / LocationMenuItem (One Location → Many MenuItems) ────────────────
+// One Location has many LocationMenuItems (each row = one menu item at that location)
+Location.hasMany(LocationMenuItem, { foreignKey: 'location_id', as: 'locationMenuItems' });
+LocationMenuItem.belongsTo(Location, { foreignKey: 'location_id', as: 'location' });
+
+// One MenuItem can appear in many LocationMenuItems (available at multiple locations)
+MenuItem.hasMany(LocationMenuItem, { foreignKey: 'menu_item_id', as: 'locationMenuItems' });
+LocationMenuItem.belongsTo(MenuItem, { foreignKey: 'menu_item_id', as: 'menuItem' });
+
+// Many-to-Many shortcut (Location ↔ MenuItem via LocationMenuItem)
+Location.belongsToMany(MenuItem, { through: LocationMenuItem, foreignKey: 'location_id', as: 'menuItems' });
+MenuItem.belongsToMany(Location, { through: LocationMenuItem, foreignKey: 'menu_item_id', as: 'locations' });
+
+// ─── Location / Order associations ───────────────────────────────────────────
 Location.hasMany(Order, { foreignKey: 'location_id' });
-Location.belongsToMany(MenuItem, { through: LocationMenuItem, foreignKey: 'location_id' });
-MenuItem.belongsToMany(Location, { through: LocationMenuItem, foreignKey: 'menu_item_id' });
-LocationMenuItem.belongsTo(MenuItem, { foreignKey: 'menu_item_id' });
-LocationMenuItem.belongsTo(Location, { foreignKey: 'location_id' });
 
 // ─── Review associations ──────────────────────────────────────────────────────
 Review.belongsTo(User, { foreignKey: 'user_id' });
@@ -92,6 +112,7 @@ module.exports = {
   Order,
   OrderStatusHistory,
   Location,
+  Menu,
   LocationMenuItem,
   Review
 };
