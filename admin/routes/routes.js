@@ -5,8 +5,12 @@ const router = express.Router();
 const authRouter = require("./auth.route");
 router.use("/auth", authRouter);
 
-// ─── Menu & Feedback Routes ───────────────────────────────────────────────────
+// ─── Menu, Feedback, Orders, Analytics, Location Routes ──────────────────────
 const menuRouter = require("./menu.route");
 router.use("/", menuRouter);
 
-module.exports = router;
+// ─── Super Admin Routes ───────────────────────────────────────────────────────
+const superAdminRouter = require("./superAdmin.route");
+router.use("/super", superAdminRouter);
+
+module.exports = router;

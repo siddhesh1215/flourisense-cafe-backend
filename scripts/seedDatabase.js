@@ -20,10 +20,11 @@ const seedDatabase = async () => {
         console.log('🌱 Starting database seeding...\n');
 
         // ═══════════════════════════════════════
-        // RESET DATABASE (IMPORTANT FIX)
+        // SAFE SYNC — does NOT reset existing data
         // ═══════════════════════════════════════
-        await sequelize.sync({ force: true });
-        console.log('✅ Database synced (FORCE RESET)\n');
+        await sequelize.sync({ force: false });
+        console.log('✅ Database synced (safe, existing data preserved)\n');
+
 
         // Reference Types
         const [roleType] = await ReferenceType.findOrCreate({
@@ -44,6 +45,14 @@ const seedDatabase = async () => {
         console.log('✅ Reference Types ready\n');
 
         // Roles
+        const [superAdminRole] = await Reference.findOrCreate({
+            where: { name: 'super_admin' },
+            defaults: {
+                code: 'SUPER_ADMIN',
+                reference_type_id: roleType.id
+            }
+        });
+
         const [adminRole] = await Reference.findOrCreate({
             where: { name: 'admin' },
             defaults: {
@@ -60,7 +69,7 @@ const seedDatabase = async () => {
             }
         });
 
-        console.log('✅ Roles created\n');
+        console.log('✅ Roles created (super_admin, admin, user)\n');
 
         // Order Status
         const [pendingStatus] = await Reference.findOrCreate({
@@ -88,6 +97,25 @@ const seedDatabase = async () => {
         });
 
         console.log('✅ Order status ready\n');
+
+        // Super Admin User
+        const superAdminPassword = await bcrypt.hash('superadmin123', 8);
+
+        await User.findOrCreate({
+            where: { email: 'superadmin@flourisense.com' },
+            defaults: {
+                name: 'Super Admin',
+                email: 'superadmin@flourisense.com',
+                phone: '+91-9000000000',
+                password: superAdminPassword,
+                is_verified: true,
+                role_id: superAdminRole.id,
+                created_on: new Date(),
+                updated_on: new Date()
+            }
+        });
+
+        console.log('🦸 Super Admin created: superadmin@flourisense.com / superadmin123\n');
 
         // Admin User
         const adminPassword = await bcrypt.hash('admin123', 8);

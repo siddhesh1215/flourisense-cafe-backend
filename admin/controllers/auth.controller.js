@@ -5,123 +5,17 @@ const jwt = require('jsonwebtoken');
 const config = require('../../config/config');
 
 /**
- * Register a new admin
+ * Admin self-registration is disabled.
+ * Admins are created by the Super Admin via POST /admin/super/admins
  */
-module.exports.register = async (request, response, next) => {
-    try {
-        const { name, email, phone, password } = request.body;
-        const secretKey = request.headers['x-admin-secret-key'];
-
-        // Validate required fields
-        if (!name || !email || !password) {
-            return response.status(400).json({
-                status: false,
-                message: "Name, email, and password are required",
-                data: null,
-            });
-        }
-
-        // Validate secret key
-        if (!secretKey) {
-            return response.status(400).json({
-                status: false,
-                message: "Secret key is required to register admin",
-                data: null,
-            });
-        }
-
-        // Check if secret key is correct
-        if (secretKey !== config.ADMIN_REGISTER_SECRET_KEY) {
-            console.log(`[ADMIN REGISTER] ❌ Invalid secret key attempt`);
-            return response.status(403).json({
-                status: false,
-                message: "Invalid secret key. Admin registration is not allowed without valid secret key.",
-                data: {
-                    hint: "Contact system administrator for the secret key"
-                },
-            });
-        }
-
-        console.log(`[ADMIN REGISTER] ✅ Valid secret key provided`);
-
-        // Check if admin already exists
-        const existingAdmin = await User.findOne({ where: { email } });
-        if (existingAdmin) {
-            return response.status(400).json({
-                status: false,
-                message: "Admin with this email already exists",
-                data: null,
-            });
-        }
-
-        // Get admin role reference
-        console.log(`[ADMIN REGISTER] Fetching admin role from Reference table...`);
-        const adminRole = await Reference.findOne({
-            where: { name: 'admin' }
-        });
-
-        if (!adminRole) {
-            console.log(`[ADMIN REGISTER] ❌ Admin role not found in Reference table`);
-            return response.status(500).json({
-                status: false,
-                message: "Admin role not found in database. Please seed the database with roles first.",
-                data: {
-                    hint: "Run: node scripts/seedDatabase.js",
-                    missingRole: "admin"
-                },
-            });
-        }
-
-        console.log(`[ADMIN REGISTER] ✅ Admin role found (ID: ${adminRole.id})`);
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create admin user with admin role
-        const admin = await User.create({
-            name,
-            email,
-            phone,
-            password: hashedPassword,
-            is_verified: false,
-            role_id: adminRole.id,
-            created_on: new Date(),
-            updated_on: new Date(),
-        });
-
-        console.log(`[ADMIN REGISTER] ✅ Admin created: ${admin.id} (${admin.email}) with role_id: ${admin.role_id}`);
-
-        // Send OTP to email
-        const otpResult = await createAndSendOTP(admin.id, email, name);
-
-        if (otpResult.success) {
-            return response.status(201).json({
-                status: true,
-                message: "Admin registered successfully. OTP sent to your email.",
-                data: {
-                    adminId: admin.id,
-                    email: admin.email,
-                    otpExpiresIn: `${otpResult.expiresIn} minutes`,
-                },
-            });
-        } else {
-            // Delete admin if OTP sending failed
-            await User.destroy({ where: { id: admin.id } });
-            return response.status(500).json({
-                status: false,
-                message: otpResult.message,
-                data: null,
-            });
-        }
-    } catch (e) {
-        console.log(e);
-        return response.status(500).json({
-            status: false,
-            message: "Something went wrong. Please try again",
-            data: null,
-        });
-    }
+module.exports.register = async (request, response) => {
+    return response.status(403).json({
+        status: false,
+        message: "Admin self-registration is disabled. Contact your Super Admin to create an account.",
+        data: null,
+    });
 };
+
 
 /**
  * Verify OTP
@@ -217,12 +111,13 @@ module.exports.login = async (request, response, next) => {
             });
         }
 
-        // Check if user is admin
-        const isAdmin = admin.role && admin.role.name?.toLowerCase() === 'admin';
-        if (!isAdmin) {
+        // Check if user is admin or super_admin
+        const roleName = admin.role?.name?.toLowerCase();
+        const isAllowed = roleName === 'admin' || roleName === 'super_admin';
+        if (!isAllowed) {
             return response.status(403).json({
                 status: false,
-                message: "This account is not an admin account",
+                message: "This account does not have admin access",
                 data: {
                     role: admin.role?.name || 'user'
                 },
@@ -270,9 +165,14 @@ module.exports.login = async (request, response, next) => {
 
         console.log(`[ADMIN LOGIN] ✅ Password valid. Generating JWT token...`);
 
-        // Generate JWT token
+        // Generate JWT token — include role name for fast middleware checks
         const token = jwt.sign(
-            { id: admin.id, email: admin.email, role_id: admin.role_id },
+            {
+                id: admin.id,
+                email: admin.email,
+                role_id: admin.role_id,
+                role: admin.role?.name || 'admin',
+            },
             config.JWT_AUTH_TOKEN,
             { expiresIn: '24h' }
         );

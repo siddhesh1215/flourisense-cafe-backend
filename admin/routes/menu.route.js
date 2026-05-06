@@ -8,12 +8,14 @@ const menuController = require('../controllers/menu.controller');
 const feedbackController = require('../controllers/feedback.controller');
 const ordersController = require('../controllers/orders.controller');
 const analyticsController = require('../controllers/analytics.controller');
+const locationController = require('../controllers/location.controller');
 
 // Validators
 const menuValidator = require('../validators/menu.validator');
 const feedbackValidator = require('../validators/feedback.validator');
 const ordersValidator = require('../validators/orders.validator');
 const analyticsValidator = require('../validators/analytics.validator');
+const locationValidator = require('../validators/location.validator');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ORDERS MANAGEMENT ROUTES
@@ -228,4 +230,88 @@ router.delete(
   feedbackController.deletePermanent
 );
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOCATION MANAGEMENT ROUTES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/v1/admin/location - Create a new location
+router.post(
+  '/location',
+  verifyAdminToken,
+  locationValidator.createLocation,
+  locationController.create
+);
+
+// GET /api/v1/admin/location - Get all locations
+router.get(
+  '/location',
+  verifyAdminToken,
+  locationController.getAll
+);
+
+// GET /api/v1/admin/location/:id - Get single location
+router.get(
+  '/location/:id',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationController.getById
+);
+
+// PUT /api/v1/admin/location/:id - Update location
+router.put(
+  '/location/:id',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationValidator.updateLocation,
+  locationController.update
+);
+
+// DELETE /api/v1/admin/location/:id - Soft delete location
+router.delete(
+  '/location/:id',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationController.delete
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOCATION ↔ MENU ITEM ASSIGNMENT ROUTES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/v1/admin/location/:id/menu-items - Assign menu items to a location
+router.post(
+  '/location/:id/menu-items',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationValidator.assignMenuItems,
+  locationController.assignMenuItems
+);
+
+// GET /api/v1/admin/location/:id/menu-items - Get all menu items for a location
+router.get(
+  '/location/:id/menu-items',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationController.getMenuItems
+);
+
+// PATCH /api/v1/admin/location/:id/menu-items/:item_id - Toggle availability of item at location
+router.patch(
+  '/location/:id/menu-items/:item_id',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationValidator.updateAvailability,
+  locationController.updateMenuItemAvailability
+);
+
+// DELETE /api/v1/admin/location/:id/menu-items/:item_id - Remove menu item from location
+router.delete(
+  '/location/:id/menu-items/:item_id',
+  verifyAdminToken,
+  locationValidator.validateId,
+  locationValidator.validateItemId,
+  locationController.removeMenuItems
+);
+
 module.exports = router;
+
