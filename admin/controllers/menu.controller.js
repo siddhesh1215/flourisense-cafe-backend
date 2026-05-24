@@ -13,7 +13,7 @@ const menuIncludes = [
  */
 module.exports.create = async (req, res) => {
   try {
-    const { name, description, emoji, price, category_id, image, is_popular, is_available, display_order, user } = req.body;
+    const { name, description, price, category_id, image, is_popular, is_available, display_order, user } = req.body;
 
     const category = await MenuCategory.findByPk(category_id);
     if (!category) return notFound(res, 'Menu category not found');
@@ -24,7 +24,6 @@ module.exports.create = async (req, res) => {
     const menuItem = await MenuItem.create({
       name: name.trim(),
       description: description || null,
-      emoji: emoji || null,
       price: parseFloat(price),
       category_id,
       is_popular: is_popular !== undefined ? is_popular : false,
@@ -122,7 +121,7 @@ module.exports.getById = async (req, res) => {
 module.exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, emoji, price, category_id, image, is_popular, is_available, display_order, user } = req.body;
+    const { name, description, price, category_id, image, is_popular, is_available, display_order, user } = req.body;
 
     const item = await MenuItem.findByPk(id);
     if (!item) return notFound(res, 'Menu item not found');
@@ -140,7 +139,6 @@ module.exports.update = async (req, res) => {
     await item.update({
       name: name ? name.trim() : item.name,
       description: description !== undefined ? description : item.description,
-      emoji: emoji !== undefined ? emoji : item.emoji,
       price: price !== undefined ? parseFloat(price) : item.price,
       category_id: category_id || item.category_id,
       is_popular: is_popular !== undefined ? is_popular : item.is_popular,

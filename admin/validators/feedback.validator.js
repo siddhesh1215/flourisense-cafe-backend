@@ -60,3 +60,27 @@ module.exports.getAll = (req, res, next) => {
 
   next();
 };
+
+// ─── UPDATE STATUS BODY VALIDATION ────────────────────────────────────────────
+module.exports.updateStatus = (req, res, next) => {
+  const { status } = req.body;
+  const errors = [];
+
+  const allowed = ['active', 'inactive', 'resolved'];
+
+  if (!status) {
+    errors.push('Status is required');
+  } else if (!allowed.includes(status)) {
+    errors.push(`Status must be one of: ${allowed.join(', ')}`);
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      status: false,
+      message: 'Validation failed',
+      data: { errors },
+    });
+  }
+
+  next();
+};

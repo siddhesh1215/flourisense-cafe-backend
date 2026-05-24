@@ -20,10 +20,6 @@ const MenuItem = sequelize.define('MenuItem', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  emoji: {
-    type: DataTypes.STRING(10),
-    allowNull: true
-  },
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false

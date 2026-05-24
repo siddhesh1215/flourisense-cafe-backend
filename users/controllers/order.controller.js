@@ -1,4 +1,4 @@
-const { sequelize, Order, OrderStatusHistory, Cart, CartItem, MenuItem, Reference } = require('../../models');
+const { sequelize, Order, OrderStatusHistory, Cart, CartItem, MenuItem, Reference, ReferenceType } = require('../../models');
 const { success, created, badRequest, notFound, serverError } = require('../../utils/response.helper');
 
 /**
@@ -12,11 +12,18 @@ const generateOrderNumber = () => {
 };
 
 /**
- * Get order status reference by code
+ * Get order status reference by code — case-insensitive search.
+ * Dynamically resolves the order_status reference_type_id to avoid hardcoding.
  */
 const getOrderStatusByCode = async (code) => {
+  const { Op } = require('sequelize');
+  const orderStatusType = await ReferenceType.findOne({ where: { name: 'order_status' } });
+  if (!orderStatusType) return null;
   return await Reference.findOne({
-    where: { code, reference_type_id: 1 } // Assuming reference_type_id 1 is for order statuses
+    where: {
+      reference_type_id: orderStatusType.id,
+      code: { [Op.like]: code }   // case-insensitive on SQLite (LIKE is case-insensitive by default)
+    }
   });
 };
 
@@ -71,29 +78,34 @@ module.exports.place = async (req, res) => {
       (sum, item) => sum + item.quantity * parseFloat(item.MenuItem.price), 0
     );
 
-    // 4. Create the order
+    // 4. Resolve initial 'pending' status (PENDING or pending — case-insensitive)
+    const pendingStatus = await getOrderStatusByCode('pending');
+
+    // 5. Create the order
     const order = await Order.create({
       user_id: userId,
       order_number: generateOrderNumber(),
       total_amount: totalAmount.toFixed(2),
       location_id: location_id || null,
       order_type_id: order_type_id || null,
+      status_id: pendingStatus?.id || null,
       created_on: new Date(),
       updated_on: new Date(),
       created_by: userId,
       updated_by: userId,
     }, { transaction: t });
 
-    // 5. Create order status history entry (initial status: pending)
+    // 6. Create order status history entry (initial status: pending)
     await OrderStatusHistory.create({
       order_id: order.id,
+      status_id: pendingStatus?.id || null,
       changed_on: new Date(),
       created_on: new Date(),
       updated_on: new Date(),
       created_by: userId,
     }, { transaction: t });
 
-    // 6. Clear user's cart
+    // 7. Clear user's cart
     await CartItem.update(
       { inactive: true, updated_on: new Date() },
       { where: { cart_id: cart.id, inactive: false }, transaction: t }
@@ -106,7 +118,7 @@ module.exports.place = async (req, res) => {
       order_number: order.order_number,
       total_amount: order.total_amount,
       payment_method,
-      status: 'pending',
+      status: pendingStatus?.name || 'pending',
     });
   } catch (error) {
     await t.rollback();
@@ -185,7 +197,7 @@ module.exports.update = async (req, res) => {
 
     // Check if order is in a final state
     const currentStatusCode = order.status?.code;
-    if (['cancelled', 'served'].includes(currentStatusCode)) {
+    if (currentStatusCode && ['cancelled', 'CANCELLED', 'served', 'SERVED'].includes(currentStatusCode)) {
       return badRequest(res, `Cannot update an order that is already "${currentStatusCode}"`);
     }
 
@@ -197,7 +209,7 @@ module.exports.update = async (req, res) => {
     // If status code provided, resolve to status_id
     if (status_code) {
       const statusRef = await getOrderStatusByCode(status_code);
-      if (!statusRef) return badRequest(res, 'Invalid order status code');
+      if (!statusRef) return badRequest(res, `Invalid order status code: "${status_code}"`);
       updateData.status_id = statusRef.id;
     }
 
@@ -209,16 +221,18 @@ module.exports.update = async (req, res) => {
     await order.update(updateData);
 
     // Log status change in history if status changed
-    if (status_code && status_code !== currentStatusCode) {
+    if (status_code) {
       const newStatus = await getOrderStatusByCode(status_code);
-      await OrderStatusHistory.create({
-        order_id: order.id,
-        status_id: newStatus.id,
-        changed_on: new Date(),
-        created_on: new Date(),
-        updated_on: new Date(),
-        created_by: userId,
-      });
+      if (newStatus) {
+        await OrderStatusHistory.create({
+          order_id: order.id,
+          status_id: newStatus.id,
+          changed_on: new Date(),
+          created_on: new Date(),
+          updated_on: new Date(),
+          created_by: userId,
+        });
+      }
     }
 
     // Return updated order with associations
@@ -231,7 +245,12 @@ module.exports.update = async (req, res) => {
 
 // ─── PUT /order/cancel/:id ────────────────────────────────────────────────────
 /**
- * Cancel an order (only if still in pending/confirmed state)
+ * Cancel an order — only if still in pending or confirmed state.
+ *
+ * FIX: getOrderStatusByCode now uses LIKE (case-insensitive on SQLite) so it
+ * matches codes regardless of case ('CANCELLED', 'cancelled', etc.).
+ * Also, the place() handler now sets an initial status_id so orders are never
+ * created without a status.
  */
 module.exports.cancel = async (req, res) => {
   try {
@@ -245,19 +264,30 @@ module.exports.cancel = async (req, res) => {
 
     if (!order) return notFound(res, 'Order not found');
 
-    const currentStatus = order.status?.code;
-    if (['preparing', 'served', 'cancelled'].includes(currentStatus)) {
-      return badRequest(res, `Order cannot be cancelled — it is already "${currentStatus}"`);
+    const currentStatusCode = (order.status?.code || '').toLowerCase();
+
+    // Block cancellation if already in a non-cancellable state
+    const nonCancellable = ['preparing', 'served', 'completed', 'cancelled'];
+    if (nonCancellable.includes(currentStatusCode)) {
+      return badRequest(res, `Order cannot be cancelled — it is already "${order.status?.name || currentStatusCode}"`);
     }
 
-    // Get cancelled status reference
+    // Resolve the cancelled status from reference table
     const cancelledStatus = await getOrderStatusByCode('cancelled');
     if (!cancelledStatus) {
-      return serverError(res, new Error('Cancelled status not found in references'));
+      // Fallback: try uppercase variant common in legacy seeds
+      const cancelledStatusUpper = await getOrderStatusByCode('CANCELLED');
+      if (!cancelledStatusUpper) {
+        return serverError(res, new Error(
+          'Order status "cancelled" not found in references table. Please run the seed script to add it.'
+        ));
+      }
     }
 
+    const resolvedCancelStatus = cancelledStatus || await getOrderStatusByCode('CANCELLED');
+
     await order.update({
-      status_id: cancelledStatus.id,
+      status_id: resolvedCancelStatus.id,
       updated_on: new Date(),
       updated_by: userId,
     });
@@ -265,7 +295,7 @@ module.exports.cancel = async (req, res) => {
     // Log cancellation in history
     await OrderStatusHistory.create({
       order_id: order.id,
-      status_id: cancelledStatus.id,
+      status_id: resolvedCancelStatus.id,
       changed_on: new Date(),
       created_on: new Date(),
       updated_on: new Date(),
@@ -275,7 +305,7 @@ module.exports.cancel = async (req, res) => {
     return success(res, 'Order cancelled successfully', {
       order_id: order.id,
       order_number: order.order_number,
-      status: 'cancelled',
+      status: resolvedCancelStatus.name,
     });
   } catch (error) {
     return serverError(res, error);

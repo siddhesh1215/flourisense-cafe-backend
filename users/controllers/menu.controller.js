@@ -136,21 +136,38 @@ module.exports.getByCategory = async (req, res) => {
   }
 };
 
-// ─── GET /user/menu/:id ───────────────────────────────────────────────────────
+// ─── GET /user/menu/:id?location_id= ─────────────────────────────────────────
 /**
  * Get a single menu item by ID.
- * No location filter here — always fetches if globally available.
+ * If location_id is provided, verifies the item is assigned & available at
+ * that location — returns 404 if it's not served there.
  */
 module.exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { location_id } = req.query;
+
+    // Validate location if provided
+    if (location_id) {
+      const location = await Location.findOne({
+        where: { id: parseInt(location_id), inactive: false },
+      });
+      if (!location) return notFound(res, 'Location not found');
+    }
 
     const item = await MenuItem.findOne({
       where: { id, is_available: true, inactive: false },
-      include: menuIncludes,
+      include: buildLocationInclude(location_id),
     });
 
-    if (!item) return notFound(res, 'Menu item not found');
+    if (!item) {
+      return notFound(
+        res,
+        location_id
+          ? 'Menu item not found or not available at this location'
+          : 'Menu item not found'
+      );
+    }
 
     return success(res, 'Menu item fetched successfully', item);
   } catch (error) {
@@ -158,3 +175,4 @@ module.exports.getById = async (req, res) => {
     return serverError(res, error);
   }
 };
+

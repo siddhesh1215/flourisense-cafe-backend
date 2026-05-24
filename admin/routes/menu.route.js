@@ -199,20 +199,13 @@ router.delete(
   feedbackController.delete
 );
 
-// PATCH /api/v1/admin/feedback/:id/approve - Approve feedback
+// PATCH /api/v1/admin/feedback/:id/status - Update feedback status
 router.patch(
-  '/feedback/:id/approve',
+  '/feedback/:id/status',
   verifyAdminToken,
   feedbackValidator.validateId,
-  feedbackController.approveFeedback
-);
-
-// PATCH /api/v1/admin/feedback/:id/reject - Reject feedback
-router.patch(
-  '/feedback/:id/reject',
-  verifyAdminToken,
-  feedbackValidator.validateId,
-  feedbackController.rejectFeedback
+  feedbackValidator.updateStatus,
+  feedbackController.updateStatus
 );
 
 // GET /api/v1/admin/feedback/stats/summary - Get feedback statistics

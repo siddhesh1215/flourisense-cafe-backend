@@ -54,6 +54,10 @@ const User = sequelize.define('User', {
   inactive: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  first_login: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'users',

@@ -299,3 +299,163 @@ module.exports.resendOTP = async (request, response, next) => {
         });
     }
 };
+
+// ─── GET /user/auth/me ────────────────────────────────────────────────────────
+/**
+ * Return the authenticated user's own profile.
+ * Requires: verifyJWTToken middleware (sets req.user).
+ */
+module.exports.getProfile = async (request, response, next) => {
+    try {
+        const userId = request.user.id;
+
+        const user = await User.findOne({
+            where: { id: userId, inactive: false },
+            attributes: ['id', 'name', 'email', 'phone', 'is_verified', 'created_on', 'updated_on'],
+        });
+
+        if (!user) {
+            return response.status(404).json({
+                status: false,
+                message: 'User not found',
+                data: null,
+            });
+        }
+
+        return response.status(200).json({
+            status: true,
+            message: 'Profile fetched successfully',
+            data: user,
+        });
+    } catch (e) {
+        console.error('[GET PROFILE ERROR]', e);
+        return response.status(500).json({
+            status: false,
+            message: 'Something went wrong. Please try again',
+            data: null,
+        });
+    }
+};
+
+// ─── PUT /user/auth/profile ───────────────────────────────────────────────────
+/**
+ * Update the authenticated user's name and/or phone.
+ * Email is NOT updatable here — it is the login credential and requires re-verification.
+ * Requires: verifyJWTToken middleware.
+ * Body: { name?, phone? }
+ */
+module.exports.updateProfile = async (request, response, next) => {
+    try {
+        const userId = request.user.id;
+        const { name, phone } = request.body;
+
+        if (!name && phone === undefined) {
+            return response.status(400).json({
+                status: false,
+                message: 'Provide at least one field to update (name or phone)',
+                data: null,
+            });
+        }
+
+        const user = await User.findOne({ where: { id: userId, inactive: false } });
+
+        if (!user) {
+            return response.status(404).json({
+                status: false,
+                message: 'User not found',
+                data: null,
+            });
+        }
+
+        const updates = { updated_on: new Date() };
+        if (name)                updates.name  = name.trim();
+        if (phone !== undefined) updates.phone = phone ? phone.trim() : null;
+
+        await user.update(updates);
+
+        return response.status(200).json({
+            status: true,
+            message: 'Profile updated successfully',
+            data: {
+                id:         user.id,
+                name:       user.name,
+                email:      user.email,
+                phone:      user.phone,
+                updated_on: user.updated_on,
+            },
+        });
+    } catch (e) {
+        if (e.name === 'SequelizeValidationError') {
+            return response.status(400).json({
+                status: false,
+                message: e.errors?.[0]?.message || 'Validation failed',
+                data: null,
+            });
+        }
+        console.error('[UPDATE PROFILE ERROR]', e);
+        return response.status(500).json({
+            status: false,
+            message: 'Something went wrong. Please try again',
+            data: null,
+        });
+    }
+};
+
+// ─── PUT /user/auth/change-password ──────────────────────────────────────────
+/**
+ * Change the authenticated user's password.
+ * Requires: verifyJWTToken middleware.
+ * Body: { current_password, new_password, confirm_password }
+ */
+module.exports.changePassword = async (request, response, next) => {
+    try {
+        const userId = request.user.id;
+        const { current_password, new_password } = request.body;
+
+        const user = await User.findOne({ where: { id: userId, inactive: false } });
+
+        if (!user) {
+            return response.status(404).json({
+                status: false,
+                message: 'User not found',
+                data: null,
+            });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(current_password, user.password);
+        if (!isMatch) {
+            return response.status(400).json({
+                status: false,
+                message: 'Current password is incorrect',
+                data: null,
+            });
+        }
+
+        // Prevent reuse of the same password
+        const isSame = await bcrypt.compare(new_password, user.password);
+        if (isSame) {
+            return response.status(400).json({
+                status: false,
+                message: 'New password must be different from your current password',
+                data: null,
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 8);
+        await user.update({ password: hashedPassword, updated_on: new Date() });
+
+        return response.status(200).json({
+            status: true,
+            message: 'Password changed successfully',
+            data: null,
+        });
+    } catch (e) {
+        console.error('[CHANGE PASSWORD ERROR]', e);
+        return response.status(500).json({
+            status: false,
+            message: 'Something went wrong. Please try again',
+            data: null,
+        });
+    }
+};

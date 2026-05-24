@@ -1,48 +1,43 @@
-const { Review, User, MenuItem } = require('../../models');
-const { success, notFound, serverError } = require('../../utils/response.helper');
+const { Feedback, User, Location, Order } = require('../../models');
+const { success, notFound, badRequest, serverError } = require('../../utils/response.helper');
+const { Op } = require('sequelize');
 
-// Common include for reviews with user and menu item info
-const reviewIncludes = [
-  { model: User, attributes: ['id', 'name', 'email'] },
-  { model: MenuItem, attributes: ['id', 'name'] },
+// Common include for feedback with associations
+const feedbackIncludes = [
+  { model: User, as: 'user', attributes: ['id', 'name', 'email'], required: false },
+  { model: Location, as: 'location', attributes: ['id', 'name', 'city'], required: false },
+  { model: Order, as: 'order', attributes: ['id', 'order_number'], required: false },
 ];
 
 // ─── GET /admin/feedback ──────────────────────────────────────────────────────
 /**
- * Get all customer feedback with pagination and filters
+ * Get all feedback with pagination and filters
  */
 module.exports.getAll = async (req, res) => {
   try {
-    const { page = 1, limit = 10, rating, is_approved, search } = req.query;
+    const { page = 1, limit = 10, rating, status, location_id, search } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = { inactive: false };
+    const where = {};
 
-    // Filter by rating
-    if (rating) {
-      where.rating = parseInt(rating);
-    }
+    if (rating) where.rating = parseInt(rating);
+    if (status) where.status = status;
+    if (location_id) where.location_id = parseInt(location_id);
 
-    // Filter by approval status
-    if (is_approved !== undefined) {
-      where.is_approved = is_approved === 'true';
-    }
-
-    // Search in comment or title
     if (search) {
-      const { Op } = require('sequelize');
       where[Op.or] = [
-        { comment: { [Op.like]: `%${search}%` } },
-        { title: { [Op.like]: `%${search}%` } },
+        { name: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } },
+        { message: { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const { count, rows } = await Review.findAndCountAll({
+    const { count, rows } = await Feedback.findAndCountAll({
       where,
-      include: reviewIncludes,
+      include: feedbackIncludes,
       limit: parseInt(limit),
       offset,
-      order: [['created_on', 'DESC']],
+      order: [['created_at', 'DESC']],
     });
 
     return success(res, 'Feedback fetched successfully', {
@@ -68,14 +63,9 @@ module.exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const feedback = await Review.findOne({
-      where: { id, inactive: false },
-      include: reviewIncludes,
-    });
+    const feedback = await Feedback.findByPk(id, { include: feedbackIncludes });
 
-    if (!feedback) {
-      return notFound(res, 'Feedback not found');
-    }
+    if (!feedback) return notFound(res, 'Feedback not found');
 
     return success(res, 'Feedback fetched successfully', feedback);
   } catch (error) {
@@ -84,125 +74,49 @@ module.exports.getById = async (req, res) => {
   }
 };
 
+// ─── PATCH /admin/feedback/:id/status ─────────────────────────────────────────
+/**
+ * Update feedback status (active / inactive / resolved)
+ */
+module.exports.updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const allowed = ['active', 'inactive', 'resolved'];
+    if (!allowed.includes(status)) {
+      return badRequest(res, `Status must be one of: ${allowed.join(', ')}`);
+    }
+
+    const feedback = await Feedback.findByPk(id);
+    if (!feedback) return notFound(res, 'Feedback not found');
+
+    await feedback.update({ status, updated_at: new Date() });
+
+    const updated = await Feedback.findByPk(id, { include: feedbackIncludes });
+    return success(res, `Feedback marked as "${status}" successfully`, updated);
+  } catch (error) {
+    console.error('[ADMIN FEEDBACK UPDATE STATUS ERROR]', error);
+    return serverError(res, error);
+  }
+};
+
 // ─── DELETE /admin/feedback/:id ───────────────────────────────────────────────
 /**
- * Delete feedback (soft delete)
+ * Soft delete feedback (mark status as inactive)
  */
 module.exports.delete = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const feedback = await Review.findByPk(id);
-    if (!feedback) {
-      return notFound(res, 'Feedback not found');
-    }
+    const feedback = await Feedback.findByPk(id);
+    if (!feedback) return notFound(res, 'Feedback not found');
 
-    // Soft delete
-    await feedback.update({ inactive: true, updated_on: new Date() });
+    await feedback.update({ status: 'inactive', updated_at: new Date() });
 
-    return success(res, 'Feedback deleted successfully', { feedbackId: id });
+    return success(res, 'Feedback deleted successfully', { feedbackId: parseInt(id) });
   } catch (error) {
     console.error('[ADMIN FEEDBACK DELETE ERROR]', error);
-    return serverError(res, error);
-  }
-};
-
-// ─── PATCH /admin/feedback/:id/approve ────────────────────────────────────────
-/**
- * Approve feedback
- */
-module.exports.approveFeedback = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const feedback = await Review.findByPk(id);
-    if (!feedback) {
-      return notFound(res, 'Feedback not found');
-    }
-
-    await feedback.update({ 
-      is_approved: true, 
-      updated_on: new Date() 
-    });
-
-    const updatedFeedback = await Review.findByPk(id, { include: reviewIncludes });
-
-    return success(res, 'Feedback approved successfully', updatedFeedback);
-  } catch (error) {
-    console.error('[ADMIN FEEDBACK APPROVE ERROR]', error);
-    return serverError(res, error);
-  }
-};
-
-// ─── PATCH /admin/feedback/:id/reject ─────────────────────────────────────────
-/**
- * Reject feedback (mark as not approved)
- */
-module.exports.rejectFeedback = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const feedback = await Review.findByPk(id);
-    if (!feedback) {
-      return notFound(res, 'Feedback not found');
-    }
-
-    await feedback.update({ 
-      is_approved: false, 
-      updated_on: new Date() 
-    });
-
-    const updatedFeedback = await Review.findByPk(id, { include: reviewIncludes });
-
-    return success(res, 'Feedback rejected successfully', updatedFeedback);
-  } catch (error) {
-    console.error('[ADMIN FEEDBACK REJECT ERROR]', error);
-    return serverError(res, error);
-  }
-};
-
-// ─── GET /admin/feedback/stats/summary ────────────────────────────────────────
-/**
- * Get feedback statistics summary
- */
-module.exports.getStats = async (req, res) => {
-  try {
-    const { Op } = require('sequelize');
-
-    const totalFeedback = await Review.count({ where: { inactive: false } });
-    const approvedFeedback = await Review.count({ where: { is_approved: true, inactive: false } });
-    const pendingFeedback = await Review.count({ where: { is_approved: false, inactive: false } });
-
-    // Get average rating
-    const avgRating = await Review.findOne({
-      attributes: [
-        [require('sequelize').fn('AVG', require('sequelize').col('rating')), 'averageRating'],
-      ],
-      where: { inactive: false, is_approved: true },
-      raw: true,
-    });
-
-    // Get rating distribution
-    const ratingDistribution = await Review.findAll({
-      attributes: [
-        'rating',
-        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
-      ],
-      where: { inactive: false, is_approved: true },
-      group: ['rating'],
-      raw: true,
-      order: [['rating', 'DESC']],
-    });
-
-    return success(res, 'Feedback statistics fetched successfully', {
-      total: totalFeedback,
-      approved: approvedFeedback,
-      pending: pendingFeedback,
-      averageRating: avgRating?.averageRating ? parseFloat(avgRating.averageRating).toFixed(2) : 0,
-      ratingDistribution,
-    });
-  } catch (error) {
-    console.error('[ADMIN FEEDBACK STATS ERROR]', error);
     return serverError(res, error);
   }
 };
@@ -215,16 +129,62 @@ module.exports.deletePermanent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const feedback = await Review.findByPk(id);
-    if (!feedback) {
-      return notFound(res, 'Feedback not found');
-    }
+    const feedback = await Feedback.findByPk(id);
+    if (!feedback) return notFound(res, 'Feedback not found');
 
-    await Review.destroy({ where: { id } });
+    await Feedback.destroy({ where: { id } });
 
-    return success(res, 'Feedback permanently deleted successfully', { feedbackId: id });
+    return success(res, 'Feedback permanently deleted', { feedbackId: parseInt(id) });
   } catch (error) {
     console.error('[ADMIN FEEDBACK DELETE PERMANENT ERROR]', error);
+    return serverError(res, error);
+  }
+};
+
+// ─── GET /admin/feedback/stats/summary ────────────────────────────────────────
+/**
+ * Feedback statistics: totals, average rating, rating distribution
+ */
+module.exports.getStats = async (req, res) => {
+  try {
+    const { sequelize } = require('../../models');
+
+    const total = await Feedback.count();
+    const active = await Feedback.count({ where: { status: 'active' } });
+    const resolved = await Feedback.count({ where: { status: 'resolved' } });
+    const inactive = await Feedback.count({ where: { status: 'inactive' } });
+
+    const avgRating = await Feedback.findOne({
+      attributes: [
+        [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
+      ],
+      where: { status: 'active' },
+      raw: true,
+    });
+
+    const ratingDistribution = await Feedback.findAll({
+      attributes: [
+        'rating',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
+      ],
+      where: { status: 'active' },
+      group: ['rating'],
+      raw: true,
+      order: [['rating', 'DESC']],
+    });
+
+    return success(res, 'Feedback statistics fetched successfully', {
+      total,
+      active,
+      resolved,
+      inactive,
+      averageRating: avgRating?.averageRating
+        ? parseFloat(avgRating.averageRating).toFixed(2)
+        : '0.00',
+      ratingDistribution,
+    });
+  } catch (error) {
+    console.error('[ADMIN FEEDBACK STATS ERROR]', error);
     return serverError(res, error);
   }
 };

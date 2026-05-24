@@ -18,13 +18,17 @@ module.exports.register = async (request, response) => {
 
 
 /**
- * Verify OTP
+ * Verify OTP — used ONLY for first-time admin login verification.
+ *
+ * On success:
+ *  - Marks admin as verified (is_verified: true)
+ *  - Clears the first_login flag (first_login: false)
+ *  - Issues a JWT token so the admin is immediately logged in
  */
-module.exports.verifyOTP = async (request, response, next) => {
+module.exports.verifyOTP = async (request, response) => {
     try {
         const { userId, otp } = request.body;
 
-        // Validate required fields
         if (!userId || !otp) {
             return response.status(400).json({
                 status: false,
@@ -33,139 +37,49 @@ module.exports.verifyOTP = async (request, response, next) => {
             });
         }
 
+        // Fetch the admin to confirm they exist and are in first-login state
+        const admin = await User.findOne({
+            where: { id: userId },
+            include: [{ model: Reference, as: 'role', attributes: ['id', 'name', 'code'] }],
+        });
+
+        if (!admin) {
+            return response.status(404).json({
+                status: false,
+                message: "Admin not found",
+                data: null,
+            });
+        }
+
+        // Only allow OTP verification if first_login is still true
+        if (!admin.first_login) {
+            return response.status(400).json({
+                status: false,
+                message: "OTP verification is not required. Please log in directly.",
+                data: null,
+            });
+        }
+
         // Verify OTP
         const result = await verifyOTP(userId, otp);
 
-        if (result.success) {
-            // Update admin as verified
-            await User.update(
-                { is_verified: true, updated_on: new Date() },
-                { where: { id: userId } }
-            );
-
-            return response.status(200).json({
-                status: true,
-                message: "Admin verified successfully",
-                data: { userId },
-            });
-        } else {
+        if (!result.success) {
             return response.status(400).json({
                 status: false,
                 message: result.message,
                 data: null,
             });
         }
-    } catch (e) {
-        console.log(e);
-        return response.status(500).json({
-            status: false,
-            message: "Something went wrong. Please try again",
-            data: null,
-        });
-    }
-};
 
-/**
- * Login admin and generate JWT token
- */
-module.exports.login = async (request, response, next) => {
-    try {
-        const { email, password } = request.body;
+        // Mark admin as verified and clear first_login flag
+        await User.update(
+            { is_verified: true, first_login: false, updated_on: new Date() },
+            { where: { id: userId } }
+        );
 
-        // Validate required fields
-        if (!email || !password) {
-            return response.status(400).json({
-                status: false,
-                message: "Email and password are required",
-                data: null,
-            });
-        }
+        console.log(`[ADMIN VERIFY OTP] ✅ Admin ${userId} verified successfully. first_login cleared.`);
 
-        // Normalize email to lowercase for case-insensitive search
-        const normalizedEmail = email.toLowerCase().trim();
-        console.log(`[ADMIN LOGIN] Attempting login with email: ${normalizedEmail}`);
-
-        // Find admin by email (case-insensitive)
-        const admin = await User.findOne({
-            where: {
-                email: normalizedEmail
-            },
-            include: [
-                {
-                    model: Reference,
-                    as: 'role',
-                    attributes: ['id', 'name', 'code']
-                }
-            ]
-        });
-
-        if (!admin) {
-            console.log(`[ADMIN LOGIN] ❌ Admin not found with email: ${normalizedEmail}`);
-            return response.status(401).json({
-                status: false,
-                message: "Invalid email or password",
-                data: {
-                    adminFound: false,
-                    hint: "No admin registered with this email address"
-                },
-            });
-        }
-
-        // Check if user is admin or super_admin
-        const roleName = admin.role?.name?.toLowerCase();
-        const isAllowed = roleName === 'admin' || roleName === 'super_admin';
-        if (!isAllowed) {
-            return response.status(403).json({
-                status: false,
-                message: "This account does not have admin access",
-                data: {
-                    role: admin.role?.name || 'user'
-                },
-            });
-        }
-
-        console.log(`[ADMIN LOGIN] ✅ Admin found: ${admin.id} (${admin.email})`);
-        console.log(`[ADMIN LOGIN] Admin verified status: ${admin.is_verified}`);
-
-        // Check if admin is verified
-        if (!admin.is_verified) {
-            console.log(`[ADMIN LOGIN] Admin not verified: ${normalizedEmail}`);
-            return response.status(403).json({
-                status: false,
-                message: "Email not verified. Please verify your email first.",
-                data: {
-                    adminId: admin.id,
-                    email: admin.email,
-                    verified: false,
-                    needsOTP: true,
-                    hint: "Use /verify-otp endpoint with OTP sent to your email"
-                },
-            });
-        }
-
-        // Verify password using bcrypt
-        console.log(`[ADMIN LOGIN] Verifying password...`);
-
-        const isPasswordValid = await bcrypt.compare(password, admin.password);
-
-        console.log(`[ADMIN LOGIN] Password verification result: ${isPasswordValid}`);
-
-        if (!isPasswordValid) {
-            console.log(`[ADMIN LOGIN] ❌ Invalid password for admin: ${normalizedEmail}`);
-            return response.status(401).json({
-                status: false,
-                message: "Invalid email or password",
-                data: {
-                    adminFound: true,
-                    passwordValid: false,
-                    hint: "Email found but password is incorrect"
-                },
-            });
-        }
-
-        console.log(`[ADMIN LOGIN] ✅ Password valid. Generating JWT token...`);
-
-        // Generate JWT token — include role name for fast middleware checks
+        // Issue JWT token so admin is immediately logged in after verification
         const token = jwt.sign(
             {
                 id: admin.id,
@@ -177,7 +91,138 @@ module.exports.login = async (request, response, next) => {
             { expiresIn: '24h' }
         );
 
-        console.log(`[ADMIN LOGIN] ✅ JWT token generated successfully for admin: ${admin.id}`);
+        return response.status(200).json({
+            status: true,
+            message: "OTP verified successfully. Welcome!",
+            data: {
+                adminId: admin.id,
+                email: admin.email,
+                name: admin.name,
+                role: admin.role?.name || 'admin',
+                token,
+                expiresIn: '24h',
+            },
+        });
+    } catch (e) {
+        console.error('[ADMIN VERIFY OTP ERROR]', e);
+        return response.status(500).json({
+            status: false,
+            message: "Something went wrong. Please try again",
+            data: null,
+        });
+    }
+};
+
+/**
+ * Admin login
+ *
+ * Flow:
+ *  - Super admin  → always gets a JWT token directly (no OTP).
+ *  - Normal admin (first_login: true)  → password verified → OTP sent → respond with needsOTP.
+ *  - Normal admin (first_login: false) → password verified → JWT token issued directly.
+ */
+module.exports.login = async (request, response) => {
+    try {
+        const { email, password } = request.body;
+
+        if (!email || !password) {
+            return response.status(400).json({
+                status: false,
+                message: "Email and password are required",
+                data: null,
+            });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        console.log(`[ADMIN LOGIN] Attempting login with email: ${normalizedEmail}`);
+
+        const admin = await User.findOne({
+            where: { email: normalizedEmail },
+            include: [{ model: Reference, as: 'role', attributes: ['id', 'name', 'code'] }],
+        });
+
+        if (!admin) {
+            console.log(`[ADMIN LOGIN] ❌ Admin not found with email: ${normalizedEmail}`);
+            return response.status(401).json({
+                status: false,
+                message: "Invalid email or password",
+                data: { adminFound: false },
+            });
+        }
+
+        // Only admin and super_admin roles are allowed here
+        const roleName = admin.role?.name?.toLowerCase();
+        const isAllowed = roleName === 'admin' || roleName === 'super_admin';
+        if (!isAllowed) {
+            return response.status(403).json({
+                status: false,
+                message: "This account does not have admin access",
+                data: { role: admin.role?.name || 'user' },
+            });
+        }
+
+        console.log(`[ADMIN LOGIN] ✅ Admin found: ${admin.id} (${admin.email}) | role: ${roleName}`);
+
+        // ── Verify password ──────────────────────────────────────────────────────
+        const isPasswordValid = await bcrypt.compare(password, admin.password);
+        if (!isPasswordValid) {
+            console.log(`[ADMIN LOGIN] ❌ Invalid password for: ${normalizedEmail}`);
+            return response.status(401).json({
+                status: false,
+                message: "Invalid email or password",
+                data: { adminFound: true, passwordValid: false },
+            });
+        }
+
+        // ── Super admin: skip OTP entirely ───────────────────────────────────────
+        if (roleName === 'super_admin') {
+            console.log(`[ADMIN LOGIN] Super admin detected — issuing token directly.`);
+            const token = jwt.sign(
+                { id: admin.id, email: admin.email, role_id: admin.role_id, role: roleName },
+                config.JWT_AUTH_TOKEN,
+                { expiresIn: '24h' }
+            );
+            return response.status(200).json({
+                status: true,
+                message: "Admin login successful",
+                data: { adminId: admin.id, email: admin.email, name: admin.name, role: roleName, token, expiresIn: '24h' },
+            });
+        }
+
+        // ── Normal admin: first login → send OTP ─────────────────────────────────
+        if (admin.first_login) {
+            console.log(`[ADMIN LOGIN] First login detected for admin ${admin.id} — sending OTP.`);
+
+            const otpResult = await createAndSendOTP(admin.id, admin.email, admin.name, 5);
+
+            if (!otpResult.success) {
+                return response.status(500).json({
+                    status: false,
+                    message: "Failed to send OTP. Please try again.",
+                    data: { error: otpResult.message },
+                });
+            }
+
+            return response.status(200).json({
+                status: true,
+                message: "OTP sent to your registered email. Please verify to complete login.",
+                data: {
+                    adminId: admin.id,
+                    email: admin.email,
+                    needsOTP: true,
+                    otpExpiresIn: `${otpResult.expiresIn} minutes`,
+                },
+            });
+        }
+
+        // ── Normal admin: subsequent logins → issue JWT directly ─────────────────
+        console.log(`[ADMIN LOGIN] ✅ Returning admin — issuing JWT token directly.`);
+
+        const token = jwt.sign(
+            { id: admin.id, email: admin.email, role_id: admin.role_id, role: roleName },
+            config.JWT_AUTH_TOKEN,
+            { expiresIn: '24h' }
+        );
 
         return response.status(200).json({
             status: true,
@@ -186,9 +231,9 @@ module.exports.login = async (request, response, next) => {
                 adminId: admin.id,
                 email: admin.email,
                 name: admin.name,
-                role: admin.role?.name || 'admin',
-                token: token,
-                expiresIn: '24h'
+                role: roleName,
+                token,
+                expiresIn: '24h',
             },
         });
     } catch (e) {
@@ -196,9 +241,7 @@ module.exports.login = async (request, response, next) => {
         return response.status(500).json({
             status: false,
             message: "Something went wrong. Please try again",
-            data: {
-                error: e.message,
-            },
+            data: { error: e.message },
         });
     }
 };

@@ -39,14 +39,6 @@ module.exports.createMenu = (req, res, next) => {
     errors.push('Description must be a string');
   }
 
-  if (req.body.emoji) {
-    if (typeof req.body.emoji !== 'string') {
-      errors.push('Emoji must be a string');
-    } else if (req.body.emoji.trim().length > 10) {
-      errors.push('Emoji must not exceed 10 characters');
-    }
-  }
-
   if (req.body.display_order && isNaN(parseInt(req.body.display_order))) {
     errors.push('Display order must be a number');
   }
@@ -109,14 +101,6 @@ module.exports.updateMenu = (req, res, next) => {
   // Validate optional fields
   if (req.body.description && typeof req.body.description !== 'string') {
     errors.push('Description must be a string');
-  }
-
-  if (req.body.emoji) {
-    if (typeof req.body.emoji !== 'string') {
-      errors.push('Emoji must be a string');
-    } else if (req.body.emoji.trim().length > 10) {
-      errors.push('Emoji must not exceed 10 characters');
-    }
   }
 
   if (req.body.display_order !== undefined && isNaN(parseInt(req.body.display_order))) {

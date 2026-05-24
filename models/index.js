@@ -17,6 +17,7 @@ const Location = require('./Location');
 const Menu = require('./Menu');
 const LocationMenuItem = require('./LocationMenuItem');
 const Review = require('./Review');
+const Feedback = require('./Feedback');
 
 // ─── User associations ────────────────────────────────────────────────────────
 User.belongsTo(Reference, { foreignKey: 'role_id', as: 'role' });
@@ -97,6 +98,14 @@ Review.belongsTo(MenuItem, { foreignKey: 'menu_item_id' });
 Review.belongsTo(Order, { foreignKey: 'order_id' });
 MenuItem.hasMany(Review, { foreignKey: 'menu_item_id' });
 
+// ─── Feedback associations ────────────────────────────────────────────────────
+Feedback.belongsTo(User, { foreignKey: 'user_id', as: 'user', constraints: false });
+Feedback.belongsTo(Location, { foreignKey: 'location_id', as: 'location', constraints: false });
+Feedback.belongsTo(Order, { foreignKey: 'order_id', as: 'order', constraints: false });
+User.hasMany(Feedback, { foreignKey: 'user_id' });
+Location.hasMany(Feedback, { foreignKey: 'location_id' });
+Order.hasMany(Feedback, { foreignKey: 'order_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -114,5 +123,6 @@ module.exports = {
   Location,
   Menu,
   LocationMenuItem,
-  Review
+  Review,
+  Feedback
 };

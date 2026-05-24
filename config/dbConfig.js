@@ -8,4 +8,4 @@ const sequelize = new Sequelize({
   logging: false, // Set to console.log for debugging
 });
 
-module.exports  = sequelize;
+module.exports = sequelize;

@@ -12,7 +12,7 @@ const userWithRole = {
 };
 
 // ─── Helper: safe user attributes (no password) ──────────────────────────────
-const safeAttributes = ['id', 'name', 'email', 'phone', 'is_verified', 'role_id', 'created_on', 'updated_on', 'inactive'];
+const safeAttributes = ['id', 'name', 'email', 'phone', 'is_verified', 'first_login', 'role_id', 'created_on', 'updated_on', 'inactive'];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN MANAGEMENT (super_admin only)
@@ -21,7 +21,7 @@ const safeAttributes = ['id', 'name', 'email', 'phone', 'is_verified', 'role_id'
 // ─── POST /admin/super/admins ─────────────────────────────────────────────────
 /**
  * Super Admin creates a new admin account.
- * Sends OTP to the new admin's email for email verification.
+ * No OTP is sent at registration — OTP verification happens on the admin's FIRST login.
  */
 module.exports.createAdmin = async (req, res) => {
   try {
@@ -43,6 +43,7 @@ module.exports.createAdmin = async (req, res) => {
       phone: phone || null,
       password: hashedPassword,
       is_verified: false,
+      first_login: true,   // triggers OTP on first login
       role_id: adminRole.id,
       inactive: false,
       created_on: new Date(),
@@ -53,21 +54,13 @@ module.exports.createAdmin = async (req, res) => {
 
     console.log(`[SUPER ADMIN] ✅ Admin created: ${newAdmin.id} (${newAdmin.email}) by super_admin: ${user?.id}`);
 
-    // Send OTP for email verification
-    const otpResult = await createAndSendOTP(newAdmin.id, newAdmin.email, newAdmin.name);
-
-    if (!otpResult.success) {
-      await User.destroy({ where: { id: newAdmin.id } });
-      return serverError(res, new Error(otpResult.message));
-    }
-
-    return created(res, 'Admin account created successfully. OTP sent to their email for verification.', {
+    return created(res, 'Admin account created successfully. They will be prompted for OTP verification on first login.', {
       adminId: newAdmin.id,
       email: newAdmin.email,
       name: newAdmin.name,
       role: 'admin',
       is_verified: false,
-      otpExpiresIn: `${otpResult.expiresIn} minutes`,
+      first_login: true,
     });
   } catch (error) {
     console.error('[SUPER ADMIN CREATE ADMIN ERROR]', error);
