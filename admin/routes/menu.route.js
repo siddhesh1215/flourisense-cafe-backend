@@ -148,6 +148,14 @@ router.get(
   menuController.getById
 );
 
+// PATCH /api/v1/admin/menu/:id/price - Update menu item price only
+router.patch(
+  '/menu/:id/price',
+  verifyAdminToken,
+  menuValidator.updatePrice,
+  menuController.updatePrice
+);
+
 // PUT /api/v1/admin/menu/:id - Update full menu item
 router.put(
   '/menu/:id',

@@ -25,13 +25,13 @@ module.exports.getDashboard = async (req, res) => {
     const todaysRevenue = await Order.sum('total_amount', {
       where: {
         created_on: { [Op.gte]: today, [Op.lt]: tomorrow },
-        status_id: 4, // completed orders only
+        status_id: 6, // completed orders only
       },
     });
 
     // Active orders (pending, processing, ready)
     const activeOrders = await Order.count({
-      where: { status_id: { [Op.in]: [1, 2, 3] } },
+      where: { status_id: { [Op.in]: [4, 5, 8] } },
     });
 
     // Average rating

@@ -1,4 +1,4 @@
-const { Order, User, MenuItem, OrderStatusHistory, Reference } = require('../../models');
+const { Order, User, MenuItem, OrderStatusHistory, Reference, sequelize } = require('../../models');
 const { success, notFound, serverError } = require('../../utils/response.helper');
 const { Op } = require('sequelize');
 
@@ -107,6 +107,7 @@ module.exports.getById = async (req, res) => {
  * Update order status
  */
 module.exports.updateStatus = async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { id } = req.params;
     const { status_id } = req.body;
@@ -114,29 +115,31 @@ module.exports.updateStatus = async (req, res) => {
     // Find order
     const order = await Order.findByPk(id);
     if (!order) {
+      await t.rollback();
       return notFound(res, 'Order not found');
     }
 
     // Validate status exists
     const status = await Reference.findByPk(status_id);
     if (!status) {
+      await t.rollback();
       return notFound(res, 'Order status not found');
     }
 
     const oldStatus = order.status_id;
+    const now = new Date();
 
     // Update order status
-    await order.update({
-      status_id,
-      updated_on: new Date(),
-    });
+    await order.update({ status_id, updated_on: now }, { transaction: t });
 
-    // Add to status history
+    // Add to status history — model requires `changed_on` (NOT NULL)
     await OrderStatusHistory.create({
       order_id: id,
       status_id,
-      created_on: new Date(),
-    });
+      changed_on: now,
+    }, { transaction: t });
+
+    await t.commit();
 
     // Fetch updated order
     const updatedOrder = await Order.findByPk(id, { include: orderIncludes });
@@ -149,6 +152,7 @@ module.exports.updateStatus = async (req, res) => {
       },
     });
   } catch (error) {
+    await t.rollback();
     console.error('[ADMIN ORDERS UPDATE STATUS ERROR]', error);
     return serverError(res, error);
   }
@@ -218,16 +222,17 @@ module.exports.getToday = async (req, res) => {
 /**
  * Get order statistics
  */
+//
 module.exports.getStats = async (req, res) => {
   try {
     const totalOrders = await Order.count();
-    const completedOrders = await Order.count({ where: { status_id: 4 } });
-    const pendingOrders = await Order.count({ where: { status_id: { [Op.in]: [1, 2, 3] } } });
-    const cancelledOrders = await Order.count({ where: { status_id: 5 } });
+    const completedOrders = await Order.count({ where: { status_id: { [Op.in]: [6, 9] } } });
+    const pendingOrders = await Order.count({ where: { status_id: { [Op.in]: [4, 5, 8] } } });
+    const cancelledOrders = await Order.count({ where: { status_id: 10 } });
 
     // Total revenue
     const totalRevenue = await Order.sum('total_amount', {
-      where: { status_id: 4 }, // Only completed orders
+      where: { status_id: { [Op.in]: [6, 9] } }, // Only completed orders
     });
 
     // Average order value
@@ -236,6 +241,7 @@ module.exports.getStats = async (req, res) => {
         [require('sequelize').fn('AVG', require('sequelize').col('total_amount')), 'average'],
       ],
       raw: true,
+      where: { status_id: { [Op.in]: [6, 9] } },
     });
 
     return success(res, 'Order statistics fetched successfully', {

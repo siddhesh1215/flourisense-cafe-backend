@@ -176,6 +176,56 @@ module.exports.update = async (req, res) => {
 };
 
 
+// ─── PATCH /admin/menu/:id/price ─────────────────────────────────────────────
+/**
+ * Update only the price of a menu item
+ */
+module.exports.updatePrice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { price, user } = req.body;
+
+    const item = await MenuItem.findByPk(id);
+    if (!item) return notFound(res, 'Menu item not found');
+
+    const oldPrice = parseFloat(item.price);
+    const newPrice = parseFloat(price);
+
+    console.log(`[UPDATE PRICE] Item ID: ${id}, Old: ${oldPrice}, New: ${newPrice}`);
+
+    // Use raw SQL to ensure the update is committed in SQLite
+    const sequelize = require('../../config/dbConfig');
+    const { QueryTypes } = require('sequelize');
+
+    await sequelize.query(
+      `UPDATE menu_items SET price = :price, updated_on = :updated_on, updated_by = :updated_by WHERE id = :id`,
+      {
+        replacements: {
+          price: newPrice,
+          updated_on: new Date().toISOString(),
+          updated_by: user?.id || null,
+          id: parseInt(id),
+        },
+        type: QueryTypes.UPDATE,
+      }
+    );
+
+    // Re-fetch to confirm the value was written
+    const updatedItem = await MenuItem.findByPk(id);
+    console.log(`[UPDATE PRICE] Confirmed price in DB: ${updatedItem.price}`);
+
+    return success(res, 'Menu item price updated successfully', {
+      id: parseInt(id),
+      name: item.name,
+      old_price: oldPrice,
+      new_price: parseFloat(updatedItem.price),
+    });
+  } catch (error) {
+    console.error('[ADMIN MENU UPDATE PRICE ERROR]', error);
+    return serverError(res, error);
+  }
+};
+
 // ─── DELETE /admin/menu/:id ───────────────────────────────────────────────────
 /**
  * Delete menu item (soft delete with inactive flag)
