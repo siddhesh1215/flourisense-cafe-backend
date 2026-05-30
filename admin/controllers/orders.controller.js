@@ -164,8 +164,8 @@ module.exports.updateStatus = async (req, res) => {
  */
 module.exports.getActive = async (req, res) => {
   try {
-    // Assuming order statuses: 1=pending, 2=processing, 3=ready, 4=completed, 5=cancelled
-    const activeStatuses = [1, 2, 3]; // pending, processing, ready
+    // Assuming order statuses: 4=pending, 5=processing, 6=completed, 7=confirmed, 8=preparing
+    const activeStatuses = [4, 5, 7, 8]; // pending, processing, confirmed, preparing
 
     const orders = await Order.findAll({
       where: {
@@ -227,7 +227,7 @@ module.exports.getStats = async (req, res) => {
   try {
     const totalOrders = await Order.count();
     const completedOrders = await Order.count({ where: { status_id: { [Op.in]: [6, 9] } } });
-    const pendingOrders = await Order.count({ where: { status_id: { [Op.in]: [4, 5, 8] } } });
+    const pendingOrders = await Order.count({ where: { status_id: { [Op.in]: [4, 5, 7, 8] } } });
     const cancelledOrders = await Order.count({ where: { status_id: 10 } });
 
     // Total revenue

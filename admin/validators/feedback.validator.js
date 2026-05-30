@@ -1,86 +1,38 @@
-/**
- * Feedback Validators for Admin Module
- */
+const Joi = require('joi');
+
+// ─── SHARED HELPER ────────────────────────────────────────────────────────────
+const fail = (res, message) =>
+  res.status(400).json({ status: false, message, data: null });
 
 // ─── ID PARAMETER VALIDATION ──────────────────────────────────────────────────
 module.exports.validateId = (req, res, next) => {
-  const { id } = req.params;
-  const errors = [];
-
-  if (!id || isNaN(parseInt(id))) {
-    errors.push('Feedback ID must be a valid number');
-  } else if (parseInt(id) <= 0) {
-    errors.push('Feedback ID must be greater than 0');
-  }
-
-  if (errors.length > 0) {
-    return res.status(400).json({
-      status: false,
-      message: 'Validation failed',
-      data: { errors },
-    });
-  }
-
+  const schema = Joi.object({ id: Joi.number().integer().positive().required() });
+  const { error } = schema.validate({ id: parseInt(req.params.id) });
+  if (error) return fail(res, error.details[0].message);
   next();
 };
 
 // ─── GET ALL FEEDBACK VALIDATION ──────────────────────────────────────────────
 module.exports.getAll = (req, res, next) => {
-  const { page, limit, rating, search } = req.query;
-  const errors = [];
+  const schema = Joi.object({
+    page:   Joi.number().integer().min(1).optional(),
+    limit:  Joi.number().integer().min(1).max(100).optional(),
+    rating: Joi.number().integer().min(1).max(5).optional(),
+    search: Joi.string().max(255).optional().allow(''),
+  });
 
-  // Validate pagination
-  if (page && (isNaN(parseInt(page)) || parseInt(page) < 1)) {
-    errors.push('Page must be a positive number');
-  }
-
-  if (limit && (isNaN(parseInt(limit)) || parseInt(limit) < 1 || parseInt(limit) > 100)) {
-    errors.push('Limit must be between 1 and 100');
-  }
-
-  // Validate rating filter
-  if (rating && (isNaN(parseInt(rating)) || parseInt(rating) < 1 || parseInt(rating) > 5)) {
-    errors.push('Rating must be between 1 and 5');
-  }
-
-  // Validate search string
-  if (search && typeof search !== 'string') {
-    errors.push('Search must be a string');
-  } else if (search && search.trim().length > 255) {
-    errors.push('Search string is too long');
-  }
-
-  if (errors.length > 0) {
-    return res.status(400).json({
-      status: false,
-      message: 'Validation failed',
-      data: { errors },
-    });
-  }
-
+  const { error } = schema.validate(req.query, { abortEarly: true });
+  if (error) return fail(res, error.details[0].message);
   next();
 };
 
 // ─── UPDATE STATUS BODY VALIDATION ────────────────────────────────────────────
 module.exports.updateStatus = (req, res, next) => {
-  const { status } = req.body;
-  const errors = [];
+  const schema = Joi.object({
+    status: Joi.string().valid('active', 'inactive', 'resolved').required(),
+  });
 
-  const allowed = ['active', 'inactive', 'resolved'];
-
-  if (!status) {
-    errors.push('Status is required');
-  } else if (!allowed.includes(status)) {
-    errors.push(`Status must be one of: ${allowed.join(', ')}`);
-  }
-
-  if (errors.length > 0) {
-    return res.status(400).json({
-      status: false,
-      message: 'Validation failed',
-      data: { errors },
-    });
-  }
-
+  const { error } = schema.validate(req.body, { abortEarly: true });
+  if (error) return fail(res, error.details[0].message);
   next();
 };

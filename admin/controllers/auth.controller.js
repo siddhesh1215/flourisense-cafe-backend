@@ -3,6 +3,7 @@ const { createAndSendOTP, verifyOTP } = require('../../services/otpService');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const config = require('../../config/config');
+const { success, notFound, badRequest, serverError } = require('../../utils/response.helper');
 
 /**
  * Admin self-registration is disabled.
@@ -243,5 +244,106 @@ module.exports.login = async (request, response) => {
             message: "Something went wrong. Please try again",
             data: { error: e.message },
         });
+    }
+};
+
+// ─── GET /admin/auth/me ───────────────────────────────────────────────────────
+/**
+ * Return the authenticated admin's own profile.
+ * Requires: verifyAdminToken middleware (sets req.user).
+ */
+module.exports.getProfile = async (req, res) => {
+    try {
+        const adminId = req.user?.id || req.auth?.id;
+
+        const admin = await User.findOne({
+            where: { id: adminId, inactive: false },
+            attributes: ['id', 'name', 'email', 'phone', 'is_verified', 'created_on', 'updated_on'],
+            include: [{ model: Reference, as: 'role', attributes: ['id', 'name', 'code'] }],
+        });
+
+        if (!admin) return notFound(res, 'Admin not found');
+
+        return success(res, 'Profile fetched successfully', admin);
+    } catch (e) {
+        console.error('[ADMIN GET PROFILE ERROR]', e);
+        return serverError(res, e);
+    }
+};
+
+// ─── PUT /admin/auth/profile ──────────────────────────────────────────────────
+/**
+ * Update the authenticated admin's name and/or phone.
+ * Email is NOT updatable here.
+ * Requires: verifyAdminToken middleware.
+ * Body: { name?, phone? }
+ */
+module.exports.updateProfile = async (req, res) => {
+    try {
+        const adminId = req.user?.id || req.auth?.id;
+        const { name, phone } = req.body;
+
+        if (!name && phone === undefined) {
+            return badRequest(res, 'Provide at least one field to update (name or phone)');
+        }
+
+        const admin = await User.findOne({ where: { id: adminId, inactive: false } });
+        if (!admin) return notFound(res, 'Admin not found');
+
+        const updates = { updated_on: new Date() };
+        if (name)                updates.name  = name.trim();
+        if (phone !== undefined) updates.phone = phone ? phone.trim() : null;
+
+        await admin.update(updates);
+
+        return success(res, 'Profile updated successfully', {
+            id:         admin.id,
+            name:       admin.name,
+            email:      admin.email,
+            phone:      admin.phone,
+            updated_on: admin.updated_on,
+        });
+    } catch (e) {
+        if (e.name === 'SequelizeValidationError') {
+            return badRequest(res, e.errors?.[0]?.message || 'Validation failed');
+        }
+        console.error('[ADMIN UPDATE PROFILE ERROR]', e);
+        return serverError(res, e);
+    }
+};
+
+// ─── PUT /admin/auth/change-password ─────────────────────────────────────────
+/**
+ * Change the authenticated admin's password.
+ * Requires: verifyAdminToken middleware.
+ * Body: { current_password, new_password, confirm_password }
+ */
+module.exports.changePassword = async (req, res) => {
+    try {
+        const adminId = req.user?.id || req.auth?.id;
+        const { current_password, new_password } = req.body;
+
+        const admin = await User.findOne({ where: { id: adminId, inactive: false } });
+        if (!admin) return notFound(res, 'Admin not found');
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(current_password, admin.password);
+        if (!isMatch) {
+            return badRequest(res, 'Current password is incorrect');
+        }
+
+        // Prevent reuse of the same password
+        const isSame = await bcrypt.compare(new_password, admin.password);
+        if (isSame) {
+            return badRequest(res, 'New password must be different from your current password');
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 8);
+        await admin.update({ password: hashedPassword, updated_on: new Date() });
+
+        return success(res, 'Password changed successfully', null);
+    } catch (e) {
+        console.error('[ADMIN CHANGE PASSWORD ERROR]', e);
+        return serverError(res, e);
     }
 };

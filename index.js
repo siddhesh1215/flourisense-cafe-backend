@@ -7,6 +7,25 @@ const { sequelize } = require('./models');
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ─── Swagger UI ───────────────────────────────────────────────────────────────
+const swaggerUi   = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
+
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'Flourisense Café API Docs',
+    swaggerOptions: { persistAuthorization: true },
+  })
+);
+// Raw OpenAPI JSON (useful for import into Postman / Insomnia)
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Import routes
 const routes = require('./router.js');
 app.use('/api/v1', routes);
@@ -17,6 +36,7 @@ sequelize.sync({ alter: false })
     console.log('Database synced successfully');
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
+      console.log(`API Docs available at http://localhost:${port}/api/docs`);
     });
   })
   .catch((error) => {
