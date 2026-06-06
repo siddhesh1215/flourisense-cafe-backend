@@ -41,8 +41,8 @@ const orderIncludes = [
 module.exports.place = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { payment_method, location_id, order_type_id, user } = req.body;
-    const userId = user.id;
+    const { payment_method, location_id, order_type_id } = req.body;
+    const userId = req.user.id;
 
     // 1. Get user's active cart with items
     const cart = await Cart.findOne({
@@ -132,7 +132,7 @@ module.exports.place = async (req, res) => {
  */
 module.exports.history = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
 
     const orders = await Order.findAll({
       where: { user_id: userId, inactive: false },
@@ -152,7 +152,7 @@ module.exports.history = async (req, res) => {
  */
 module.exports.getById = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
     const { id } = req.params;
 
     const order = await Order.findOne({
@@ -185,7 +185,7 @@ module.exports.getById = async (req, res) => {
  */
 module.exports.update = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
     const { id } = req.params;
     const { status_code, payment_status } = req.body;
 
@@ -254,7 +254,7 @@ module.exports.update = async (req, res) => {
  */
 module.exports.cancel = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
     const { id } = req.params;
 
     const order = await Order.findOne({

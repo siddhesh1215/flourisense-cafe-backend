@@ -107,9 +107,6 @@ module.exports.verifyAdminRole = async (request, response, next) => {
                 isAdmin: true,
             };
 
-            // Also attach to body for backward compatibility
-            request.body.user = decoded;
-
             return next();
         });
     } catch (error) {
@@ -214,7 +211,6 @@ module.exports.verifyAdminRoleWithDB = async (request, response, next) => {
                 isAdmin: true,
             };
 
-            request.body.user = decoded;
             return next();
         });
     } catch (error) {

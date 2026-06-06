@@ -40,8 +40,6 @@ module.exports.verifyJWTToken = (request, response, next) => {
                 } else {
                     if (result) {
                         request.user = result;           // standard Express pattern
-                        if (!request.body) request.body = {};
-                        request.body.user = result;      // backward compat for controllers
                         return next();
                     } else {
                         return response

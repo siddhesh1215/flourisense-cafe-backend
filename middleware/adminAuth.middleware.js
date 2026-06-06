@@ -91,7 +91,6 @@ module.exports.verifyAdminToken = async (request, response, next) => {
             // Attach to request
             request.auth = decoded;
             request.user = user;
-            if (request.body) request.body.user = decoded;
 
             return next();
         });
@@ -177,7 +176,6 @@ module.exports.verifySuperAdminToken = async (request, response, next) => {
             // Attach to request
             request.auth = decoded;
             request.user = user;
-            if (request.body) request.body.user = decoded;
 
             return next();
         });

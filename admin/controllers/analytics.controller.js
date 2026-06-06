@@ -29,9 +29,9 @@ module.exports.getDashboard = async (req, res) => {
       },
     });
 
-    // Active orders (pending, processing, ready)
+    // Active orders (pending, processing, confirmed, preparing, served)
     const activeOrders = await Order.count({
-      where: { status_id: { [Op.in]: [4, 5, 8] } },
+      where: { status_id: { [Op.in]: [4, 5, 7, 8, 9] } },
     });
 
     // Average rating
@@ -91,7 +91,7 @@ module.exports.getRevenue = async (req, res) => {
       ],
       where: {
         created_on: { [Op.gte]: startDate },
-        status_id: 4, // completed orders only
+        status_id: 6, // completed orders only
       },
       group: [require('sequelize').fn('DATE', require('sequelize').col('created_on'))],
       order: [[require('sequelize').fn('DATE', require('sequelize').col('created_on')), 'ASC']],
@@ -131,7 +131,7 @@ module.exports.getOrders = async (req, res) => {
     const ordersByStatus = await Order.findAll({
       attributes: [
         'status_id',
-        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
+        [require('sequelize').fn('COUNT', require('sequelize').col('Order.id')), 'count'],
       ],
       group: ['status_id'],
       include: [
@@ -283,10 +283,10 @@ module.exports.getSummary = async (req, res) => {
       Order.sum('total_amount', {
         where: {
           created_on: { [Op.gte]: today, [Op.lt]: tomorrow },
-          status_id: 4,
+          status_id: 6, // completed orders only
         },
       }),
-      Order.count({ where: { status_id: { [Op.in]: [1, 2, 3] } } }),
+      Order.count({ where: { status_id: { [Op.in]: [4, 5, 7, 8, 9] } } }), // active orders: pending, processing, confirmed, preparing, served
       Review.findOne({
         attributes: [
           [require('sequelize').fn('AVG', require('sequelize').col('rating')), 'average'],
@@ -294,7 +294,7 @@ module.exports.getSummary = async (req, res) => {
         where: { is_approved: true, inactive: false },
         raw: true,
       }),
-      User.count(),
+      User.count({ where: { role_id: 3 } }), // only customers (role_id = 3 = user)
       MenuItem.count({ where: { inactive: false } }),
     ]);
 
@@ -321,69 +321,59 @@ module.exports.getSummary = async (req, res) => {
 // ─── GET /admin/analytics/popular-items ───────────────────────────────────────
 /**
  * Get popular menu items (most ordered)
+ * MenuItem hasMany CartItem (via menu_item_id) — NOT a many-to-many, so no `through` option.
  */
 module.exports.getPopularItems = async (req, res) => {
   try {
     const { limit = 10, days = 30 } = req.query;
 
-    // Calculate date range (last N days)
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(days));
-
-    // Get most ordered items
-    const { CartItem } = require('../../models');
+    const { CartItem, MenuCategory } = require('../../models');
     const sequelize = require('../../config/dbConfig');
+
+    // Date range for the period filter
+    const rangeStart = new Date();
+    rangeStart.setDate(rangeStart.getDate() - parseInt(days));
+    rangeStart.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
     const popularItems = await MenuItem.findAll({
       attributes: [
         'id',
         'name',
-        'emoji',
         'price',
         'category_id',
         [sequelize.fn('COUNT', sequelize.col('CartItems.id')), 'orderCount'],
         [sequelize.fn('SUM', sequelize.col('CartItems.quantity')), 'totalQuantity'],
         [
-          sequelize.fn('SUM', sequelize.literal('CartItems.quantity * CartItems.price')),
+          sequelize.fn('SUM', sequelize.literal('`CartItems`.`quantity` * `MenuItem`.`price`')),
           'totalRevenue',
         ],
       ],
       include: [
         {
           model: CartItem,
-          attributes: [],
-          required: false,
-          through: { attributes: [] },
+          attributes: [], // no extra columns — aggregated above
+          required: false, // LEFT JOIN so items with 0 orders still appear
         },
         {
-          model: require('../../models').MenuCategory,
-          attributes: ['id', 'name'],
+          model: MenuCategory,
+          attributes: ['name'],
         },
       ],
       where: { inactive: false },
-      group: ['MenuItem.id'],
+      group: ['MenuItem.id', 'MenuCategory.id'],
       order: [[sequelize.fn('COUNT', sequelize.col('CartItems.id')), 'DESC']],
       limit: parseInt(limit),
       subQuery: false,
       raw: true,
     });
 
-    // Also get by orders in last N days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const rangeStart = new Date();
-    rangeStart.setDate(rangeStart.getDate() - parseInt(days));
-    rangeStart.setHours(0, 0, 0, 0);
-
-    const itemsInRange = await Order.findAll({
-      attributes: [
-        [sequelize.fn('COUNT', sequelize.col('id')), 'orderCount'],
-      ],
+    // Total orders placed in the period
+    const totalOrdersInRange = await Order.count({
       where: {
         created_on: { [Op.gte]: rangeStart, [Op.lte]: today },
       },
-      subQuery: false,
-      raw: true,
     });
 
     return success(res, 'Popular items fetched successfully', {
@@ -395,14 +385,13 @@ module.exports.getPopularItems = async (req, res) => {
       items: popularItems.map((item) => ({
         id: item.id,
         name: item.name,
-        emoji: item.emoji,
         price: item.price,
         orderCount: parseInt(item.orderCount) || 0,
         totalQuantity: parseInt(item.totalQuantity) || 0,
-        totalRevenue: item.totalRevenue ? parseFloat(item.totalRevenue).toFixed(2) : 0,
+        totalRevenue: item.totalRevenue ? parseFloat(item.totalRevenue).toFixed(2) : '0.00',
         category: item['MenuCategory.name'] || 'Uncategorized',
       })),
-      totalOrders: itemsInRange[0]?.orderCount || 0,
+      totalOrders: totalOrdersInRange,
     });
   } catch (error) {
     console.error('[ADMIN ANALYTICS POPULAR ITEMS ERROR]', error);

@@ -9,7 +9,6 @@ const placeOrder = async (req, res, next) => {
       .required(),
     location_id: Joi.number().integer().positive().optional().allow(null),
     order_type_id: Joi.number().integer().positive().optional().allow(null),
-    user: Joi.any().optional(),
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });
@@ -28,7 +27,6 @@ const updateOrder = async (req, res, next) => {
     payment_status: Joi.string()
       .valid('pending', 'paid', 'failed', 'refunded')
       .optional(),
-    user: Joi.any().optional(),
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });

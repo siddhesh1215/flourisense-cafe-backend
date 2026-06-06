@@ -238,7 +238,7 @@ module.exports.resetAdminPassword = async (req, res) => {
 module.exports.deleteAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { user } = req.body;
+    const user = req.user;
 
     if (user?.id && parseInt(id) === parseInt(user.id)) {
       return badRequest(res, 'You cannot delete your own account');

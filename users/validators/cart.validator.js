@@ -6,7 +6,6 @@ const addToCart = async (req, res, next) => {
   const schema = Joi.object({
     menu_item_id: Joi.number().integer().positive().required(),
     quantity: Joi.number().integer().min(1).max(100).required(),
-    user: Joi.any().optional(),
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });
@@ -20,7 +19,6 @@ const addToCart = async (req, res, next) => {
 const updateCart = async (req, res, next) => {
   const schema = Joi.object({
     quantity: Joi.number().integer().min(1).max(100).required(),
-    user: Joi.any().optional(),
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });

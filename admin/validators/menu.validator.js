@@ -16,7 +16,8 @@ module.exports.createMenu = (req, res, next) => {
     is_available:  Joi.boolean().optional(),
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: true });
+  const { error, value } = schema.validate(req.body, { abortEarly: true, stripUnknown: true });
+  if (!error) req.body = value;
   if (error) return fail(res, error.details[0].message);
   next();
 };
@@ -33,7 +34,8 @@ module.exports.updateMenu = (req, res, next) => {
     is_available:  Joi.boolean().optional(),
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: true });
+  const { error, value } = schema.validate(req.body, { abortEarly: true, stripUnknown: true });
+  if (!error) req.body = value;
   if (error) return fail(res, error.details[0].message);
   next();
 };
@@ -44,7 +46,8 @@ module.exports.updatePrice = (req, res, next) => {
     price: Joi.number().precision(2).positive().max(999999.99).required(),
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: true });
+  const { error, value } = schema.validate(req.body, { abortEarly: true, stripUnknown: true });
+  if (!error) req.body = value;
   if (error) return fail(res, error.details[0].message);
   next();
 };

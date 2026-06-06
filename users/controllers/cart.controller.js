@@ -33,8 +33,8 @@ const getCartWithTotal = async (userId) => {
  */
 module.exports.add = async (req, res) => {
   try {
-    const { menu_item_id, quantity, user } = req.body;
-    const userId = user.id;
+    const { menu_item_id, quantity } = req.body;
+    const userId = req.user.id;
 
     // Validate menu item exists and is available
     const menuItem = await MenuItem.findOne({
@@ -42,17 +42,26 @@ module.exports.add = async (req, res) => {
     });
     if (!menuItem) return notFound(res, 'Menu item not found or not available');
 
-    // Find or create cart for user
-    let [cart] = await Cart.findOrCreate({
+    // Find existing active cart OR create a new one safely
+    let cart = await Cart.findOne({
       where: { user_id: userId, inactive: false },
-      defaults: {
+    });
+
+    if (!cart) {
+      cart = await Cart.create({
         user_id: userId,
+        inactive: false,
         created_on: new Date(),
         updated_on: new Date(),
         created_by: userId,
         updated_by: userId,
-      },
-    });
+      });
+    }
+
+    // Sanity check — cart must have a valid id
+    if (!cart || !cart.id) {
+      return serverError(res, new Error('Failed to get or create cart'));
+    }
 
     // Check if item already in cart → update quantity instead of duplicating
     const existingItem = await CartItem.findOne({
@@ -70,6 +79,7 @@ module.exports.add = async (req, res) => {
         cart_id: cart.id,
         menu_item_id,
         quantity,
+        inactive: false,
         created_on: new Date(),
         updated_on: new Date(),
         created_by: userId,
@@ -89,13 +99,14 @@ module.exports.add = async (req, res) => {
   }
 };
 
+
 // ─── GET /cart ────────────────────────────────────────────────────────────────
 /**
  * Get the logged-in user's cart with all items and total
  */
 module.exports.getCart = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
 
     const cart = await getCartWithTotal(userId);
 
@@ -124,18 +135,22 @@ module.exports.getCart = async (req, res) => {
  */
 module.exports.getCartItem = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
     const { id } = req.params;
 
+    // Fetch cart item without ownership filter first
     const cartItem = await CartItem.findOne({
       where: { id, inactive: false },
       include: [
-        { model: Cart, where: { user_id: userId }, attributes: ['id', 'user_id'] },
+        { model: Cart, attributes: ['id', 'user_id'], required: true },
         { model: MenuItem, attributes: ['id', 'name', 'price'] },
       ],
     });
 
     if (!cartItem) return notFound(res, 'Cart item not found');
+
+    // Verify the cart belongs to the requesting user
+    if (cartItem.Cart.user_id !== userId) return notFound(res, 'Cart item not found');
 
     return success(res, 'Cart item fetched successfully', cartItem);
   } catch (error) {
@@ -149,7 +164,7 @@ module.exports.getCartItem = async (req, res) => {
  */
 module.exports.update = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
     const { id } = req.params;
     const { quantity } = req.body;
 
@@ -182,7 +197,7 @@ module.exports.update = async (req, res) => {
  */
 module.exports.removeItem = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
     const { id } = req.params;
 
     const cartItem = await CartItem.findOne({
@@ -206,7 +221,7 @@ module.exports.removeItem = async (req, res) => {
  */
 module.exports.clearCart = async (req, res) => {
   try {
-    const userId = req.body.user.id;
+    const userId = req.user.id;
 
     const cart = await Cart.findOne({ where: { user_id: userId, inactive: false } });
     if (!cart) return success(res, 'Cart is already empty');
